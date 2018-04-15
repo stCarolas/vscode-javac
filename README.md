@@ -1,4 +1,4 @@
-# VS Code support for Java using the [Java Compiler API](https://docs.oracle.com/javase/7/docs/api/javax/tools/JavaCompiler.html)
+# Language Server for Java using the [Java Compiler API](https://docs.oracle.com/javase/7/docs/api/javax/tools/JavaCompiler.html)
 
 Provides Java support using the Java Compiler API.
 Requires that you have Java 8 installed on your system.
