@@ -1,5 +1,6 @@
 package org.javacs;
 
+import com.google.gson.JsonPrimitive;
 import java.net.URI;
 import java.util.Collections;
 import java.util.List;
@@ -35,10 +36,13 @@ class JavaWorkspaceService implements WorkspaceService {
 
         switch (params.getCommand()) {
             case "Java.importClass":
-                String fileString = (String) params.getArguments().get(0);
+                JsonPrimitive fileStringJson = (JsonPrimitive) params.getArguments().get(0),
+                        packageNameJson = (JsonPrimitive) params.getArguments().get(1),
+                        classNameJson = (JsonPrimitive) params.getArguments().get(2);
+                String fileString = fileStringJson.getAsString(),
+                        packageName = packageNameJson.getAsString(),
+                        className = classNameJson.getAsString();
                 URI fileUri = URI.create(fileString);
-                String packageName = (String) params.getArguments().get(1);
-                String className = (String) params.getArguments().get(2);
                 FocusedResult compiled =
                         server.configured()
                                 .compiler
