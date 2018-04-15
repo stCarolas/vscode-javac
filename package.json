@@ -3,7 +3,7 @@
     "displayName": "Java Language Support",
     "description": "Java support using the Java Compiler API",
     "icon": "icon.png",
-    "version": "0.0.47",
+    "version": "0.1.0",
     "publisher": "georgewfraser",
     "repository": {
         "type": "git",
@@ -11,7 +11,7 @@
     },
     "license": "MIT",
     "engines": {
-        "vscode": "^1.12.0"
+        "vscode": "^1.21.0"
     },
     "categories": [
         "Languages",
@@ -23,7 +23,7 @@
     "activationEvents": [
         "onLanguage:java"
     ],
-    "main": "./out/lib/Main",
+    "main": "./out/extension",
     "files": [
         "target/fat-jar.jar"
     ],
@@ -77,18 +77,19 @@
         }
     },
     "scripts": {
-        "vscode:prepublish": "tsc -p ./",
-        "compile": "tsc -watch -p ./",
-        "postinstall": "node ./node_modules/vscode/bin/install"
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "postinstall": "node ./node_modules/vscode/bin/install",
+        "test": "npm run compile && node ./node_modules/vscode/bin/test"
     },
     "dependencies": {
-        "portfinder": "^1.0.13",
-        "vscode-languageclient": "3.2.2"
+        "vscode-languageclient": "^4.0.0"
     },
     "devDependencies": {
-        "typescript": "^2.2.1",
-        "vscode": "^1.1.0",
-        "@types/node": "^6.0.40",
-        "@types/es6-promise": "^0.0.32"
+        "typescript": "^2.6.1",
+        "vscode": "^1.1.6",
+        "@types/node": "^7.0.43",
+        "@types/mocha": "^2.2.42"
     }
 }

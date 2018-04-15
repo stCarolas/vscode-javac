@@ -2,6 +2,7 @@ package org.javacs;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import com.google.gson.JsonPrimitive;
 import com.overzealous.remark.Options;
 import com.overzealous.remark.Remark;
 import com.sun.javadoc.*;
@@ -340,7 +341,8 @@ public class Javadocs {
     public void resolveCompletionItem(CompletionItem unresolved) {
         if (unresolved.getData() == null || unresolved.getDocumentation() != null) return;
 
-        String key = (String) unresolved.getData();
+        JsonPrimitive keyJson = (JsonPrimitive) unresolved.getData();
+        String key = keyJson.getAsString();
 
         LOG.info("Resolve javadoc for " + key);
 

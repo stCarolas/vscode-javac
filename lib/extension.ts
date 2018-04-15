@@ -4,10 +4,8 @@
 import * as VSCode from "vscode";
 import * as Path from "path";
 import * as FS from "fs";
-import * as PortFinder from "portfinder";
-import * as Net from "net";
 import * as ChildProcess from "child_process";
-import {LanguageClient, LanguageClientOptions, StreamInfo} from "vscode-languageclient";
+import {LanguageClient, LanguageClientOptions, ServerOptions} from "vscode-languageclient";
 
 /** Called when extension is activated */
 export function activate(context: VSCode.ExtensionContext) {
@@ -45,48 +43,24 @@ export function activate(context: VSCode.ExtensionContext) {
             outputChannelName: 'Java',
             revealOutputChannelOn: 4 // never
         }
+
+        let fatJar = Path.resolve(context.extensionPath, "out", "fat-jar.jar");
         
-        function createServer(): Promise<StreamInfo> {
-            return new Promise((resolve, reject) => {
-                PortFinder.getPort({port: 55282}, (err, port) => {
-                    let fatJar = Path.resolve(context.extensionPath, "out", "fat-jar.jar");
-                    
-                    let args = [
-                        '-cp', fatJar, 
-                        '-Djavacs.port=' + port,
-                        '-Xverify:none', // helps VisualVM avoid 'error 62'
-                        'org.javacs.Main'
-                    ];
-                    
-                    console.log(javaExecutablePath + ' ' + args.join(' '));
-                    
-                    Net.createServer(socket => {
-                        console.log('Child process connected on port ' + port);
-
-                        resolve({
-                            reader: socket,
-                            writer: socket
-                        });
-                    }).listen(port, () => {
-                        // Start the child java process
-                        let options = { cwd: VSCode.workspace.rootPath };
-                        let process = ChildProcess.spawn(javaExecutablePath, args, options);
-
-                        // Send raw output to a file
-                        if (!FS.existsSync(context.storagePath))
-                            FS.mkdirSync(context.storagePath);
-
-                        let logFile = context.storagePath + '/vscode-javac.log';
-                        let logStream = FS.createWriteStream(logFile, {flags: 'w'});
-
-                        process.stdout.pipe(logStream);
-                        process.stderr.pipe(logStream);
-
-                        console.log(`Storing log in '${logFile}'`);
-                    });
-                });
-            });
+        let args = [
+            '-cp', fatJar, 
+            '-Xverify:none', // helps VisualVM avoid 'error 62'
+            'org.javacs.Main'
+        ];
+        
+        console.log(javaExecutablePath + ' ' + args.join(' '));
+        // Start the child java process
+        let serverOptions: ServerOptions = {
+            command: javaExecutablePath,
+            args: args,
+            options: { cwd: VSCode.workspace.rootPath }
         }
+    
+        console.log(javaExecutablePath + ' ' + args.join(' '));
 
         // Copied from typescript
         VSCode.languages.setLanguageConfiguration('java', {
@@ -123,25 +97,20 @@ export function activate(context: VSCode.ExtensionContext) {
                 }
             ]
         })
-
+    
         // Create the language client and start the client.
-        let languageClient = new LanguageClient('vscode-javac', 'Java Language Server', createServer, clientOptions);
+        let languageClient = new LanguageClient('java', 'Java Language Server', serverOptions, clientOptions);
         let disposable = languageClient.start();
-
+    
         // Push the disposable to the context's subscriptions so that the 
         // client can be deactivated on extension deactivation
         context.subscriptions.push(disposable);
     });
 }
 
-interface CustomTelemetryEvent {
-    event: 'Progress'|'Done';
-    file?: string;
-}
-
 function isJava8(javaExecutablePath: string): Promise<boolean> {
     return new Promise((resolve, reject) => {
-        let result = ChildProcess.execFile(javaExecutablePath, ['-version'], { }, (error, stdout, stderr) => {
+        ChildProcess.execFile(javaExecutablePath, ['-version'], { }, (error, stdout, stderr) => {
             let eight = stderr.indexOf('1.8') >= 0, nine = stderr.indexOf('"9"') >= 0;
             
             resolve(eight || nine);

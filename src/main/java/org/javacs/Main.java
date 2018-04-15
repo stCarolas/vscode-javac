@@ -87,42 +87,16 @@ public class Main {
         setRootFormat();
 
         try {
-            Socket connection = connectToNode();
-
-            run(connection);
+            JavaLanguageServer server = new JavaLanguageServer();
+            Launcher<LanguageClient> launcher = LSPLauncher.createServerLauncher(server, System.in, System.out);
+    
+            server.installClient(launcher.getRemoteProxy());
+            launcher.startListening();
+            LOG.info(String.format("java.version is %s", System.getProperty("java.version")));
         } catch (Throwable t) {
             LOG.log(Level.SEVERE, t.getMessage(), t);
 
             System.exit(1);
         }
-    }
-
-    private static Socket connectToNode() throws IOException {
-        String port = System.getProperty("javacs.port");
-
-        Objects.requireNonNull(port, "-Djavacs.port=? is required");
-
-        LOG.info("Connecting to " + port);
-
-        Socket socket = new Socket("localhost", Integer.parseInt(port));
-
-        LOG.info("Connected to parent using socket on port " + port);
-
-        return socket;
-    }
-
-    /**
-     * Listen for requests from the parent node process. Send replies asynchronously. When the
-     * request stream is closed, wait for 5s for all outstanding responses to compute, then return.
-     */
-    public static void run(Socket connection) throws IOException {
-        JavaLanguageServer server = new JavaLanguageServer();
-        Launcher<LanguageClient> launcher =
-                LSPLauncher.createServerLauncher(
-                        server, connection.getInputStream(), connection.getOutputStream());
-
-        server.installClient(launcher.getRemoteProxy());
-        launcher.startListening();
-        LOG.info(String.format("java.version is %s", System.getProperty("java.version")));
     }
 }
