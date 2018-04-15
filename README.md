@@ -35,9 +35,11 @@ Requires that you have Java 8 installed on your system.
 
 ![Goto 2](images/Goto2.png)
 
-### Find symbol
+### Find symbols
 
-![Find symbol](images/FindSymbol.png)
+![Find workspace symbols](images/FindWorkspaceSymbols.png)
+
+![Find document symbols](images/FindDocumentSymbols.png)
 
 ### Lint
 
