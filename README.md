@@ -13,43 +13,51 @@ Requires that you have Java 8 installed on your system.
 
 ### Javadoc
 
-<img src="http://g.recordit.co/GROuFBSPQD.gif">
+![Javadoc](images/Javadoc.png)
 
 ### Signature help
 
-<img src="http://g.recordit.co/pXkdKptzrI.gif">
+![Signature help](images/SignatureHelp.png)
 
 ### Autocomplete symbols (with auto-import)
 
-<img src="http://g.recordit.co/HpNZPIDA8T.gif">
+![Auto import 1](images/AutoImport1.png)
+
+![Auto import 2](images/AutoImport2.png)
 
 ### Autocomplete members
 
-<img src="http://g.recordit.co/np8mXIWfQ8.gif">
+![Autocomplete members](images/AutocompleteMembers.png)
 
 ### Go-to-definition
 
-<img src="http://g.recordit.co/AJGsEVoF6z.gif">
+![Goto 1](images/Goto1.png)
+
+![Goto 2](images/Goto2.png)
 
 ### Find symbol
 
-<img src="http://g.recordit.co/XuZvrCJfBx.gif">
+![Find symbol](images/FindSymbol.png)
 
 ### Lint
 
-<img src="http://g.recordit.co/Fu8vgP0uG0.gif">
+![Error highlight](images/ErrorHighlight.png)
 
 ### Type information on hover
 
-<img src="http://g.recordit.co/w5nRIfef65.gif">
+![Type hover](images/TypeHover.png)
 
 ### Code actions
 
-<img src="http://g.recordit.co/pjQh1KuyK4.gif">
+![Suggest import 1](images/SuggestImport1.png)
+
+![Suggest import 2](images/SuggestImport2.png)
 
 ### Find references
 
-<img src="http://g.recordit.co/3tNYL8StgJ.gif">
+![Find references 1](images/FindReferences1.png)
+
+![Find references 2](images/FindReferences2.png)
 
 ## Usage
 
