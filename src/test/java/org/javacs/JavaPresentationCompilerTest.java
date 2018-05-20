@@ -5,9 +5,11 @@ import static org.junit.Assert.*;
 
 import com.sun.source.tree.*;
 import com.sun.source.util.*;
+import java.io.*;
 import java.net.URI;
 import java.util.*;
 import java.util.logging.*;
+import java.util.stream.Collectors;
 import javax.lang.model.*;
 import javax.lang.model.element.*;
 import javax.lang.model.type.*;
@@ -19,37 +21,34 @@ public class JavaPresentationCompilerTest {
 
     private JavaPresentationCompiler compiler = new JavaPresentationCompiler();
 
-    private String helloWorld =
-            "public class HelloWorld {\n"
-                    + "  public static void main(String[] args) {\n"
-                    + "    System.out.println(\"Hello world!\");\n"
-                    + "  }\n"
-                    + "}";
+    private String contents(String resourceFile) {
+        try (InputStream in =
+                JavaPresentationCompilerTest.class.getResourceAsStream(resourceFile)) {
+            return new BufferedReader(new InputStreamReader(in))
+                    .lines()
+                    .collect(Collectors.joining("\n"));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     @Test
     public void element() {
-        Element found = compiler.element(URI.create("/HelloWorld.java"), helloWorld, 3, 18);
+        Element found =
+                compiler.element(
+                        URI.create("/HelloWorld.java"), contents("/HelloWorld.java"), 3, 24);
 
         assertThat(found.getSimpleName(), hasToString(containsString("println")));
     }
 
-    private String buildUpScope =
-            "class BuildUpScope {\n"
-                    + "  void main() {\n"
-                    + "    int a = 1;\n"
-                    + "    int b = 2;\n"
-                    + "    int c = 3;\n"
-                    + "  }\n"
-                    + "  void otherMethod() { }\n"
-                    + "}\n";
-
     @Test
     public void buildUpScope() {
-        Scope a = compiler.scope(URI.create("/BuildUpScope.java"), buildUpScope, 3, 12);
+        String contents = contents("/BuildUpScope.java");
+        Scope a = compiler.scope(URI.create("/BuildUpScope.java"), contents, 3, 17);
         assertThat(localElements(a), containsInAnyOrder("super", "this", "a"));
-        Scope b = compiler.scope(URI.create("/BuildUpScope.java"), buildUpScope, 4, 12);
+        Scope b = compiler.scope(URI.create("/BuildUpScope.java"), contents, 4, 17);
         assertThat(localElements(b), containsInAnyOrder("super", "this", "a", "b"));
-        Scope c = compiler.scope(URI.create("/BuildUpScope.java"), buildUpScope, 5, 12);
+        Scope c = compiler.scope(URI.create("/BuildUpScope.java"), contents, 5, 17);
         assertThat(localElements(c), containsInAnyOrder("super", "this", "a", "b", "c"));
     }
 
@@ -59,5 +58,14 @@ public class JavaPresentationCompilerTest {
             result.add(e.getSimpleName().toString());
         }
         return result;
+    }
+
+    @Test
+    public void pruneMethods() {
+        Pruner pruner =
+                new Pruner(URI.create("/PruneMethods.java"), contents("/PruneMethods.java"));
+        String pruned = pruner.prune(6, 17);
+        String expected = contents("/PruneMethods_erased.java");
+        assertThat(pruned, equalToIgnoringWhiteSpace(expected));
     }
 }
