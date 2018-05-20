@@ -33,15 +33,26 @@ public class JavaPresentationCompiler {
         }
     }
 
+    private Scope scope(URI file, String contents, int line) {
+        return TODO();
+    }
+
     /** Find all members of `identifer`, which can be a qualified identifier like Foo.bar */
     public List<? extends Element> members(URI file, String contents, int line, String identifier) {
         return TODO();
     }
 
-    /** Find the element at a point */
-    public Optional<Element> element(URI file, String contents, int line, int character) {
+    /** Find the smallest element that includes the cursor */
+    public Element element(URI file, String contents, int line, int character) {
         recompileIfChanged(file, contents);
 
+        Trees trees = Trees.instance(cache.task);
+        TreePath path = path(file, contents, line, character);
+        return trees.getElement(path);
+    }
+
+    /** Find the smallest tree that includes the cursor */
+    private TreePath path(URI file, String contents, int line, int character) {
         // Search for the smallest element that encompasses line:column
         Trees trees = Trees.instance(cache.task);
         SourcePositions pos = trees.getSourcePositions();
@@ -66,19 +77,22 @@ public class JavaPresentationCompiler {
                             startColumn = lines.getColumnNumber(start),
                             endLine = lines.getLineNumber(end),
                             endColumn = lines.getColumnNumber(end);
-                    // Don't return multi-line elements
-                    if (startLine != endLine) return;
-                    if (startLine == line && startColumn <= character && character <= endColumn) {
+                    if (leq(startLine, startColumn, line, character)
+                            && leq(line, character, endLine, endColumn)) {
                         if (width.applyAsInt(leaf) <= width.applyAsInt(found.value))
                             found.value = leaf;
                     }
                 });
+        if (found.value == null)
+            throw new RuntimeException(
+                    String.format("No TreePath to %s %d:%d", file, line, character));
+        else return trees.getPath(cache.parsed, found.value);
+    }
 
-        if (found.value != null) {
-            TreePath path = trees.getPath(cache.parsed, found.value);
-            Element el = trees.getElement(path);
-            return Optional.of(el);
-        } else return Optional.empty();
+    private boolean leq(long beforeLine, long beforeColumn, long afterLine, long afterColumn) {
+        if (beforeLine < afterLine) return true;
+        else if (beforeLine == afterLine) return beforeColumn <= afterColumn;
+        else return false;
     }
 
     private static <T> T TODO() {

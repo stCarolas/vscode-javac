@@ -1,7 +1,7 @@
 package org.javacs;
 
 import static org.hamcrest.Matchers.*;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import com.sun.source.util.*;
 import java.io.IOException;
@@ -28,11 +28,8 @@ public class JavaPresentationCompilerTest {
 
     @Test
     public void element() throws IOException {
-        Optional<Element> found =
-                compiler.element(URI.create("/HelloWorld.java"), helloWorld, 3, 18);
+        Element found = compiler.element(URI.create("/HelloWorld.java"), helloWorld, 3, 18);
 
-        assertTrue(found.isPresent());
-
-        LOG.info(found.get().toString());
+        assertThat(found.getSimpleName(), hasToString(containsString("println")));
     }
 }
