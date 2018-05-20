@@ -28,17 +28,30 @@ public class JavaPresentationCompiler {
     private Cache cache;
 
     private void recompileIfChanged(URI file, String contents) {
-        if (cache == null || !cache.contents.equals(contents)) {
+        if (cache == null || !cache.file.equals(file) || !cache.contents.equals(contents)) {
             cache = new Cache(file, contents);
         }
     }
 
-    private Scope scope(URI file, String contents, int line) {
-        return TODO();
+    private void recompileIncrementally(URI file, String contents) {
+        if (cache == null || !cache.file.equals(file)) {
+            cache = new Cache(file, contents);
+        }
+        // TODO recover from small changes, recompile on large changes
     }
 
-    /** Find all members of `identifer`, which can be a qualified identifier like Foo.bar */
-    public List<? extends Element> members(URI file, String contents, int line, String identifier) {
+    /** Find the scope at a point. Exposed for testing. */
+    Scope scope(URI file, String contents, int line, int character) {
+        recompileIncrementally(file, contents);
+
+        Trees trees = Trees.instance(cache.task);
+        TreePath path = path(file, contents, line, character);
+        return trees.getScope(path);
+    }
+
+    /** Find all members of `expr`, which can be any expression */
+    public List<? extends Element> members(
+            URI file, String contents, int line, int character, String expr) {
         return TODO();
     }
 
