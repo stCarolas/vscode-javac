@@ -27,6 +27,42 @@ public class JavaPresentationCompiler {
      */
     private Cache cache;
 
+    private void report(Diagnostic<? extends JavaFileObject> diags) {
+        LOG.warning(diags.getMessage(null));
+    }
+
+    private JavacTask singleFileTask(URI file, String contents) {
+        return (JavacTask)
+                compiler.getTask(
+                        null,
+                        fileManager,
+                        JavaPresentationCompiler.this::report,
+                        Arrays.asList("-proc:none", "-g"),
+                        Collections.emptyList(),
+                        Collections.singletonList(new StringFileObject(contents, file)));
+    }
+
+    class Cache {
+        final String contents;
+        final URI file;
+        final CompilationUnitTree parsed;
+        final Element analyzed;
+        final JavacTask task;
+
+        Cache(URI file, String contents) {
+            this.contents = contents;
+            this.file = file;
+            this.task = singleFileTask(file, contents);
+
+            try {
+                this.parsed = task.parse().iterator().next();
+                this.analyzed = task.analyze().iterator().next();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
     private void recompileIfChanged(URI file, String contents) {
         if (cache == null || !cache.file.equals(file) || !cache.contents.equals(contents)) {
             cache = new Cache(file, contents);
@@ -40,28 +76,24 @@ public class JavaPresentationCompiler {
         // TODO recover from small changes, recompile on large changes
     }
 
-    /** Find the scope at a point. Exposed for testing. */
-    Scope scope(URI file, String contents, int line, int character) {
-        recompileIncrementally(file, contents);
-
-        Trees trees = Trees.instance(cache.task);
-        TreePath path = path(file, contents, line, character);
-        return trees.getScope(path);
+    private boolean leq(long beforeLine, long beforeColumn, long afterLine, long afterColumn) {
+        if (beforeLine < afterLine) return true;
+        else if (beforeLine == afterLine) return beforeColumn <= afterColumn;
+        else return false;
     }
 
-    /** Find all members of `expr`, which can be any expression */
-    public List<? extends Element> members(
-            URI file, String contents, int line, int character, String expr) {
-        return TODO();
+    private static <T> T TODO() {
+        throw new UnsupportedOperationException("TODO");
     }
 
-    /** Find the smallest element that includes the cursor */
-    public Element element(URI file, String contents, int line, int character) {
-        recompileIfChanged(file, contents);
-
-        Trees trees = Trees.instance(cache.task);
-        TreePath path = path(file, contents, line, character);
-        return trees.getElement(path);
+    private void scan(CompilationUnitTree root, Consumer<Tree> forEach) {
+        new TreeScanner<Void, Void>() {
+            @Override
+            public Void scan(Tree tree, Void nothing) {
+                if (tree != null) forEach.accept(tree);
+                return super.scan(tree, nothing);
+            }
+        }.scan(root, null);
     }
 
     /** Find the smallest tree that includes the cursor */
@@ -102,56 +134,27 @@ public class JavaPresentationCompiler {
         else return trees.getPath(cache.parsed, found.value);
     }
 
-    private boolean leq(long beforeLine, long beforeColumn, long afterLine, long afterColumn) {
-        if (beforeLine < afterLine) return true;
-        else if (beforeLine == afterLine) return beforeColumn <= afterColumn;
-        else return false;
+    /** Find the scope at a point. Exposed for testing. */
+    Scope scope(URI file, String contents, int line, int character) {
+        recompileIncrementally(file, contents);
+
+        Trees trees = Trees.instance(cache.task);
+        TreePath path = path(file, contents, line, character);
+        return trees.getScope(path);
     }
 
-    private static <T> T TODO() {
-        throw new UnsupportedOperationException("TODO");
+    /** Find all members of `expr`, which can be any expression */
+    public List<? extends Element> members(
+            URI file, String contents, int line, int character, String expr) {
+        return TODO();
     }
 
-    private void scan(CompilationUnitTree root, Consumer<Tree> forEach) {
-        new TreeScanner<Void, Void>() {
-            @Override
-            public Void scan(Tree tree, Void nothing) {
-                if (tree != null) forEach.accept(tree);
-                return super.scan(tree, nothing);
-            }
-        }.scan(root, null);
-    }
+    /** Find the smallest element that includes the cursor */
+    public Element element(URI file, String contents, int line, int character) {
+        recompileIfChanged(file, contents);
 
-    private void report(Diagnostic<? extends JavaFileObject> diags) {
-        LOG.warning(diags.getMessage(null));
-    }
-
-    class Cache {
-        final String contents;
-        final URI file;
-        final CompilationUnitTree parsed;
-        final Element analyzed;
-        final JavacTask task;
-
-        Cache(URI file, String contents) {
-            this.contents = contents;
-            this.file = file;
-            this.task =
-                    (JavacTask)
-                            compiler.getTask(
-                                    null,
-                                    fileManager,
-                                    JavaPresentationCompiler.this::report,
-                                    Arrays.asList("-proc:none", "-g"),
-                                    Collections.emptyList(),
-                                    Collections.singletonList(
-                                            new StringFileObject(contents, file)));
-            try {
-                this.parsed = task.parse().iterator().next();
-                this.analyzed = task.analyze().iterator().next();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
+        Trees trees = Trees.instance(cache.task);
+        TreePath path = path(file, contents, line, character);
+        return trees.getElement(path);
     }
 }
