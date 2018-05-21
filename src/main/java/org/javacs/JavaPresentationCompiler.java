@@ -20,7 +20,7 @@ import javax.tools.*;
 public class JavaPresentationCompiler {
     private static final Logger LOG = Logger.getLogger("main");
 
-    // If you want to edit these, you need to create a new instance, because the delegate JavaCompiler remembers them from task to task
+    // Not modifiable! If you want to edit these, you need to create a new instance
     private final Set<Path> sourcePath, classPath;
     private final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
     // Use the same file manager for multiple tasks, so we don't repeatedly re-compile the same files
@@ -31,14 +31,18 @@ public class JavaPresentationCompiler {
     private Cache cache;
 
     public JavaPresentationCompiler(Set<Path> sourcePath, Set<Path> classPath) {
-        this.sourcePath = sourcePath;
-        this.classPath = classPath;
+        // sourcePath and classPath can't actually be modified, because JavaCompiler remembers them from task to task
+        this.sourcePath = Collections.unmodifiableSet(sourcePath);
+        this.classPath = Collections.unmodifiableSet(classPath);
     }
 
     private void report(Diagnostic<? extends JavaFileObject> diags) {
         LOG.warning(diags.getMessage(null));
     }
 
+    /**
+     * Combine source path or class path entries using the system separator, for example ':' in unix
+     */
     private static String joinPath(Collection<Path> classOrSourcePath) {
         return classOrSourcePath
                 .stream()
@@ -68,6 +72,7 @@ public class JavaPresentationCompiler {
                 "-Xlint:static");
     }
 
+    /** Create a task that compiles a single file */
     private JavacTask singleFileTask(URI file, String contents) {
         return (JavacTask)
                 compiler.getTask(
@@ -79,11 +84,14 @@ public class JavaPresentationCompiler {
                         Collections.singletonList(new StringFileObject(contents, file)));
     }
 
+    /** Stores the compiled version of a single file */
     class Cache {
         final String contents;
         final URI file;
         final CompilationUnitTree root;
         final JavacTask task;
+        // Only the block around the cursor is focused
+        // All other blocks have their contents erased to speed up compilation
         final long focusStart, focusEnd;
 
         Cache(URI file, String contents, int line, int character) {
@@ -123,6 +131,7 @@ public class JavaPresentationCompiler {
         }
     }
 
+    /** Recompile if the active file has been edited, or if the active file has changed */
     private void recompile(URI file, String contents, int line, int character) {
         if (cache == null
                 || !cache.file.equals(file)
