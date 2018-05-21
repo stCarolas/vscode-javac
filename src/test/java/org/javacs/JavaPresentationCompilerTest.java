@@ -99,4 +99,19 @@ public class JavaPresentationCompilerTest {
         assertThat(names, hasItem("completeOuterStatic"));
         assertThat(names, hasItem("CompleteIdentifiers"));
     }
+
+    @Test
+    public void members() {
+        List<Element> found =
+                compiler.members(
+                        URI.create("/CompleteMembers.java"),
+                        contents("/CompleteMembers.java"),
+                        3,
+                        14);
+        List<String> names =
+                found.stream().map(e -> e.getSimpleName().toString()).collect(Collectors.toList());
+        assertThat(names, hasItem("subMethod"));
+        assertThat(names, hasItem("superMethod"));
+        assertThat(names, hasItem("equals"));
+    }
 }

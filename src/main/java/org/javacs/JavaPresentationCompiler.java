@@ -12,6 +12,7 @@ import java.util.logging.*;
 import javax.lang.model.*;
 import javax.lang.model.element.*;
 import javax.lang.model.type.*;
+import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.*;
 
@@ -207,7 +208,48 @@ public class JavaPresentationCompiler {
 
     /** Find all members of expression ending at line:character */
     public List<Element> members(URI file, String contents, int line, int character) {
-        return TODO();
+        recompile(file, contents, line, character);
+
+        class Walk {
+            Trees trees = Trees.instance(cache.task);
+            Types types = cache.task.getTypes();
+            Elements elements = cache.task.getElements();
+            TreePath path = path(file, contents, line, character);
+            Scope scope = trees.getScope(path);
+            List<Element> result = new ArrayList<>();
+
+            void walkType(TypeMirror t) {
+                Element e = types.asElement(t);
+                for (Element member : e.getEnclosedElements()) {
+                    // If type is a DeclaredType, check accessibility of member
+                    if (t instanceof DeclaredType) {
+                        DeclaredType declaredType = (DeclaredType) t;
+                        if (trees.isAccessible(scope, member, declaredType)) {
+                            result.add(member);
+                        }
+                    }
+                    // Otherwise, accessibility rules are very complicated
+                    // Give up and just declare that everything is accessible
+                    else result.add(member);
+                }
+            }
+
+            List<Element> walkSupers() {
+                TypeMirror t = trees.getTypeMirror(path);
+                // Add all the direct members first
+                walkType(t);
+                // Add members of superclasses and interfaces
+                for (TypeMirror s : types.directSupertypes(t)) {
+                    walkType(s);
+                }
+                // Object type is not included by default
+                // We need to add it to get members like .equals(other) and .hashCode()
+                // TODO this may add things twice for interfaces with no super-interfaces
+                walkType(elements.getTypeElement("java.lang.Object").asType());
+                return result;
+            }
+        }
+        return new Walk().walkSupers();
     }
 
     /** Find the smallest element that includes the cursor */
