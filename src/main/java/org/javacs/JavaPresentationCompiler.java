@@ -40,8 +40,7 @@ public class JavaPresentationCompiler {
     class Cache {
         final String contents;
         final URI file;
-        final CompilationUnitTree parsed;
-        final Element analyzed;
+        final CompilationUnitTree root;
         final JavacTask task;
         final long focusStart, focusEnd;
 
@@ -60,15 +59,15 @@ public class JavaPresentationCompiler {
             this.file = file;
             this.task = singleFileTask(file, contents);
             try {
-                this.parsed = task.parse().iterator().next();
-                this.analyzed = task.analyze().iterator().next();
+                this.root = task.parse().iterator().next();
+                task.analyze();
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         }
 
         boolean focusIncludes(int line, int character) {
-            long p = parsed.getLineMap().getPosition(line, character);
+            long p = root.getLineMap().getPosition(line, character);
             return focusStart <= p && p <= focusEnd;
         }
     }
@@ -108,21 +107,21 @@ public class JavaPresentationCompiler {
         // Search for the smallest element that encompasses line:column
         Trees trees = Trees.instance(cache.task);
         SourcePositions pos = trees.getSourcePositions();
-        LineMap lines = cache.parsed.getLineMap();
+        LineMap lines = cache.root.getLineMap();
         ToIntFunction<Tree> width =
                 t -> {
                     if (t == null) return Integer.MAX_VALUE;
-                    long start = pos.getStartPosition(cache.parsed, t),
-                            end = pos.getEndPosition(cache.parsed, t);
+                    long start = pos.getStartPosition(cache.root, t),
+                            end = pos.getEndPosition(cache.root, t);
                     if (start == -1 || end == -1) return Integer.MAX_VALUE;
                     return (int) (end - start);
                 };
         Ref<Tree> found = new Ref<>();
         scan(
-                cache.parsed,
+                cache.root,
                 leaf -> {
-                    long start = pos.getStartPosition(cache.parsed, leaf),
-                            end = pos.getEndPosition(cache.parsed, leaf);
+                    long start = pos.getStartPosition(cache.root, leaf),
+                            end = pos.getEndPosition(cache.root, leaf);
                     // If element has no position, give up
                     if (start == -1 || end == -1) return;
                     long startLine = lines.getLineNumber(start),
@@ -138,7 +137,7 @@ public class JavaPresentationCompiler {
         if (found.value == null)
             throw new RuntimeException(
                     String.format("No TreePath to %s %d:%d", file, line, character));
-        else return trees.getPath(cache.parsed, found.value);
+        else return trees.getPath(cache.root, found.value);
     }
 
     /** Find the scope at a point. Exposed for testing. */
@@ -150,8 +149,23 @@ public class JavaPresentationCompiler {
         return trees.getScope(path);
     }
 
-    /** Find all members of `expr`, which can be any expression */
-    public List<? extends Element> members(URI file, String contents, int line, int character) {
+    /** Find all identifiers accessible from scope at line:character */
+    public List<Element> identifiers(URI file, String contents, int line, int character) {
+        recompile(file, contents, line, character);
+
+        List<Element> result = new ArrayList<>();
+        Scope s = scope(file, contents, line, character);
+        while (s != null) {
+            for (Element e : s.getLocalElements()) {
+                result.add(e);
+            }
+            s = s.getEnclosingScope();
+        }
+        return result;
+    }
+
+    /** Find all members of expression at line:character */
+    public List<Element> members(URI file, String contents, int line, int character) {
         return TODO();
     }
 

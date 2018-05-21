@@ -41,6 +41,14 @@ public class JavaPresentationCompilerTest {
         assertThat(found.getSimpleName(), hasToString(containsString("println")));
     }
 
+    private List<String> localElements(Scope s) {
+        List<String> result = new ArrayList<>();
+        for (Element e : s.getLocalElements()) {
+            result.add(e.getSimpleName().toString());
+        }
+        return result;
+    }
+
     @Test
     public void buildUpScope() {
         String contents = contents("/BuildUpScope.java");
@@ -52,14 +60,6 @@ public class JavaPresentationCompilerTest {
         assertThat(localElements(c), containsInAnyOrder("super", "this", "a", "b", "c"));
     }
 
-    private List<String> localElements(Scope s) {
-        List<String> result = new ArrayList<>();
-        for (Element e : s.getLocalElements()) {
-            result.add(e.getSimpleName().toString());
-        }
-        return result;
-    }
-
     @Test
     public void pruneMethods() {
         Pruner pruner =
@@ -67,5 +67,22 @@ public class JavaPresentationCompilerTest {
         pruner.prune(6, 17);
         String expected = contents("/PruneMethods_erased.java");
         assertThat(pruner.contents(), equalToIgnoringWhiteSpace(expected));
+    }
+
+    @Test
+    public void identifiers() {
+        List<Element> found =
+                compiler.identifiers(
+                        URI.create("/CompleteIdentifiers.java"),
+                        contents("/CompleteIdentifiers.java"),
+                        13,
+                        21);
+        List<String> names =
+                found.stream().map(e -> e.getSimpleName().toString()).collect(Collectors.toList());
+        assertThat(names, hasItem("completeLocal"));
+        assertThat(names, hasItem("completeParam"));
+        assertThat(names, hasItem("super"));
+        assertThat(names, hasItem("this"));
+        assertThat(names, hasItem("CompleteIdentifiers"));
     }
 }
