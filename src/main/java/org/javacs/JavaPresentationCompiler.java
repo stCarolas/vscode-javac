@@ -205,7 +205,7 @@ public class JavaPresentationCompiler {
         return new Walk().walkScopes();
     }
 
-    /** Find all members of expression at line:character */
+    /** Find all members of expression ending at line:character */
     public List<Element> members(URI file, String contents, int line, int character) {
         return TODO();
     }

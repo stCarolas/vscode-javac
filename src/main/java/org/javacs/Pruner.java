@@ -73,9 +73,14 @@ class Pruner {
             @Override
             public Void visitBlock(BlockTree node, Void aVoid) {
                 if (containsCursor(node)) {
-                    focusStart = sourcePositions.getStartPosition(root, node);
-                    focusEnd = sourcePositions.getEndPosition(root, node);
                     super.visitBlock(node, aVoid);
+                    // When we find the deepest block that includes the cursor
+                    if (focusEnd == -1) {
+                        focusStart = sourcePositions.getStartPosition(root, node);
+                        focusEnd = sourcePositions.getEndPosition(root, node);
+                        // Erase the contents of the block after the cursor
+                        erase(cursor, focusEnd - 1);
+                    }
                 } else {
                     long start = sourcePositions.getStartPosition(root, node),
                             end = sourcePositions.getEndPosition(root, node);
