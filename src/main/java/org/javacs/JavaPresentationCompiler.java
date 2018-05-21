@@ -2,13 +2,16 @@ package org.javacs;
 
 import com.sun.source.tree.*;
 import com.sun.source.util.*;
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.Charset;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.ToIntFunction;
 import java.util.logging.*;
+import java.util.stream.Collectors;
 import javax.lang.model.*;
 import javax.lang.model.element.*;
 import javax.lang.model.type.*;
@@ -20,12 +23,44 @@ public class JavaPresentationCompiler {
     private static final Logger LOG = Logger.getLogger("main");
 
     private final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+    // Use the same file manager for multiple tasks, so we don't repeatedly re-compile the same files
     private final StandardJavaFileManager fileManager =
             compiler.getStandardFileManager(this::report, null, Charset.defaultCharset());
+    // Cache a single compiled file
+    // Since the user can only edit one file at a time, this should be sufficient
     private Cache cache;
 
     private void report(Diagnostic<? extends JavaFileObject> diags) {
         LOG.warning(diags.getMessage(null));
+    }
+
+    private static String joinPath(Collection<Path> classOrSourcePath) {
+        return classOrSourcePath
+                .stream()
+                .map(p -> p.toString())
+                .collect(Collectors.joining(File.pathSeparator));
+    }
+
+    private static List<String> options(Set<Path> sourcePath, Set<Path> classPath) {
+        return Arrays.asList(
+                "-classpath",
+                joinPath(classPath),
+                "-sourcepath",
+                joinPath(sourcePath),
+                "-verbose",
+                "-proc:none",
+                "-g",
+                // You would think we could do -Xlint:all,
+                // but some lints trigger fatal errors in the presence of parse errors
+                "-Xlint:cast",
+                "-Xlint:deprecation",
+                "-Xlint:empty",
+                "-Xlint:fallthrough",
+                "-Xlint:finally",
+                "-Xlint:path",
+                "-Xlint:unchecked",
+                "-Xlint:varargs",
+                "-Xlint:static");
     }
 
     private JavacTask singleFileTask(URI file, String contents) {
@@ -34,7 +69,7 @@ public class JavaPresentationCompiler {
                         null,
                         fileManager,
                         JavaPresentationCompiler.this::report,
-                        Arrays.asList("-proc:none", "-g"),
+                        options(Collections.emptySet(), Collections.emptySet()),
                         Collections.emptyList(),
                         Collections.singletonList(new StringFileObject(contents, file)));
     }
@@ -47,27 +82,36 @@ public class JavaPresentationCompiler {
         final long focusStart, focusEnd;
 
         Cache(URI file, String contents, int line, int character) {
-            if (line != -1) {
+            // If `line` is -1, recompile the entire file
+            if (line == -1) {
+                this.contents = contents;
+                this.focusStart = 0;
+                this.focusEnd = contents.length();
+            }
+            // Otherwise, focus on the block surrounding line:character, erasing all other block bodies
+            else {
                 Pruner p = new Pruner(file, contents);
                 p.prune(line, character);
                 this.contents = p.contents();
                 this.focusStart = p.focusStart();
                 this.focusEnd = p.focusEnd();
-            } else {
-                this.contents = contents;
-                this.focusStart = 0;
-                this.focusEnd = contents.length();
             }
             this.file = file;
             this.task = singleFileTask(file, contents);
             try {
                 this.root = task.parse().iterator().next();
+                // The results of task.analyze() are unreliable when errors are present
+                // You can get at `Element` values using `Trees`
                 task.analyze();
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         }
 
+        /**
+         * Is line:character contained in the focused block that was actually compiled? All other
+         * blocks were erased; you should re-compile if you need information from another block.
+         */
         boolean focusIncludes(int line, int character) {
             long p = root.getLineMap().getPosition(line, character);
             return focusStart <= p && p <= focusEnd;
@@ -81,7 +125,6 @@ public class JavaPresentationCompiler {
                 || !cache.focusIncludes(line, character)) {
             cache = new Cache(file, contents, line, character);
         }
-        // TODO recover from small changes, recompile on large changes
     }
 
     private boolean leq(long beforeLine, long beforeColumn, long afterLine, long afterColumn) {
@@ -166,19 +209,25 @@ public class JavaPresentationCompiler {
                 return name.equals("this") || name.equals("super");
             }
 
-            void unwrap(VariableElement ve) {
+            // Place each member of `this` or `super` directly into `results`
+            void unwrapThisSuper(VariableElement ve) {
                 TypeMirror thisType = ve.asType();
-                if (thisType instanceof DeclaredType) {
-                    DeclaredType thisDeclaredType = (DeclaredType) thisType;
-                    Element thisElement = types.asElement(thisDeclaredType);
-                    for (Element thisMember : thisElement.getEnclosedElements()) {
-                        if (trees.isAccessible(start, thisMember, thisDeclaredType)) {
-                            result.add(thisMember);
-                        }
+                // `this` and `super` should always be instances of DeclaredType, which we'll use to check accessibility
+                if (!(thisType instanceof DeclaredType)) {
+                    LOG.warning(String.format("%s is not a DeclaredType", thisType));
+                    return;
+                }
+                DeclaredType thisDeclaredType = (DeclaredType) thisType;
+                Element thisElement = types.asElement(thisDeclaredType);
+                for (Element thisMember : thisElement.getEnclosedElements()) {
+                    // Check if member is accessible from original scope
+                    if (trees.isAccessible(start, thisMember, thisDeclaredType)) {
+                        result.add(thisMember);
                     }
                 }
             }
 
+            // Place each member of `s` into results, and unwrap `this` and `super`
             void walkLocals(Scope s) {
                 for (Element e : s.getLocalElements()) {
                     if (e instanceof TypeElement) {
@@ -188,7 +237,7 @@ public class JavaPresentationCompiler {
                         VariableElement ve = (VariableElement) e;
                         result.add(ve);
                         if (isThisOrSuper(ve)) {
-                            unwrap(ve);
+                            unwrapThisSuper(ve);
                         }
                     } else {
                         result.add(e);
@@ -196,6 +245,7 @@ public class JavaPresentationCompiler {
                 }
             }
 
+            // Walk each enclosing scope, placing its members into `results`
             List<Element> walkScopes() {
                 for (Scope s = start; s != null; s = s.getEnclosingScope()) {
                     walkLocals(s);
@@ -218,6 +268,7 @@ public class JavaPresentationCompiler {
             Scope scope = trees.getScope(path);
             List<Element> result = new ArrayList<>();
 
+            // Place each member of `t` into `results`
             void walkType(TypeMirror t) {
                 Element e = types.asElement(t);
                 for (Element member : e.getEnclosedElements()) {
@@ -234,6 +285,7 @@ public class JavaPresentationCompiler {
                 }
             }
 
+            // Walk the type at `path` and each of its direct supertypes, placing members into `results`
             List<Element> walkSupers() {
                 TypeMirror t = trees.getTypeMirror(path);
                 // Add all the direct members first
