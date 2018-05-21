@@ -34,7 +34,6 @@ class Pruner {
     private final JavacTask task;
     private final CompilationUnitTree root;
     private final StringBuilder contents;
-    private long focusStart = -1, focusEnd = -1;
 
     Pruner(URI file, String contents) {
         this.task = singleFileTask(file, contents);
@@ -52,6 +51,8 @@ class Pruner {
         long cursor = lines.getPosition(line, character);
 
         class Scan extends TreeScanner<Void, Void> {
+            boolean erasedAfterCursor = false;
+
             boolean containsCursor(Tree node) {
                 long start = sourcePositions.getStartPosition(root, node),
                         end = sourcePositions.getEndPosition(root, node);
@@ -75,11 +76,10 @@ class Pruner {
                 if (containsCursor(node)) {
                     super.visitBlock(node, aVoid);
                     // When we find the deepest block that includes the cursor
-                    if (focusEnd == -1) {
-                        focusStart = sourcePositions.getStartPosition(root, node);
-                        focusEnd = sourcePositions.getEndPosition(root, node);
+                    if (!erasedAfterCursor) {
                         // Erase the contents of the block after the cursor
-                        erase(cursor, focusEnd - 1);
+                        erase(cursor, sourcePositions.getEndPosition(root, node) - 1);
+                        erasedAfterCursor = true;
                     }
                 } else {
                     long start = sourcePositions.getStartPosition(root, node),
@@ -100,13 +100,5 @@ class Pruner {
 
     String contents() {
         return contents.toString();
-    }
-
-    long focusStart() {
-        return focusStart;
-    }
-
-    long focusEnd() {
-        return focusEnd;
     }
 }

@@ -90,24 +90,19 @@ public class JavaPresentationCompiler {
         final URI file;
         final CompilationUnitTree root;
         final JavacTask task;
-        // Only the block around the cursor is focused
-        // All other blocks have their contents erased to speed up compilation
-        final long focusStart, focusEnd;
+        final int line, character;
 
         Cache(URI file, String contents, int line, int character) {
             // If `line` is -1, recompile the entire file
             if (line == -1) {
                 this.contents = contents;
-                this.focusStart = 0;
-                this.focusEnd = contents.length();
             }
-            // Otherwise, focus on the block surrounding line:character, erasing all other block bodies
+            // Otherwise, focus on the block surrounding line:character,
+            // erasing all other block bodies and everything after the cursor in its own block
             else {
                 Pruner p = new Pruner(file, contents);
                 p.prune(line, character);
                 this.contents = p.contents();
-                this.focusStart = p.focusStart();
-                this.focusEnd = p.focusEnd();
             }
             this.file = file;
             this.task = singleFileTask(file, contents);
@@ -119,15 +114,8 @@ public class JavaPresentationCompiler {
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
-        }
-
-        /**
-         * Is line:character contained in the focused block that was actually compiled? All other
-         * blocks were erased; you should re-compile if you need information from another block.
-         */
-        boolean focusIncludes(int line, int character) {
-            long p = root.getLineMap().getPosition(line, character);
-            return focusStart <= p && p <= focusEnd;
+            this.line = line;
+            this.character = character;
         }
     }
 
@@ -136,7 +124,8 @@ public class JavaPresentationCompiler {
         if (cache == null
                 || !cache.file.equals(file)
                 || !cache.contents.equals(contents)
-                || !cache.focusIncludes(line, character)) {
+                || cache.line != line
+                || cache.character != character) {
             cache = new Cache(file, contents, line, character);
         }
     }
