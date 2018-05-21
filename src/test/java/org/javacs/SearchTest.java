@@ -50,8 +50,7 @@ public class SearchTest {
     private static Set<String> searchFile(URI uri) {
         try {
             return server.getTextDocumentService()
-                    .documentSymbol(
-                            new DocumentSymbolParams(new TextDocumentIdentifier(uri.toString())))
+                    .documentSymbol(new DocumentSymbolParams(new TextDocumentIdentifier(uri.toString())))
                     .get()
                     .stream()
                     .map(result -> result.getName())

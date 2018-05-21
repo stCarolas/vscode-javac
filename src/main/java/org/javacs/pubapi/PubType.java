@@ -51,9 +51,7 @@ public class PubType implements Serializable {
     public boolean equals(Object obj) {
         if (getClass() != obj.getClass()) return false;
         PubType other = (PubType) obj;
-        return modifiers.equals(other.modifiers)
-                && fqName.equals(other.fqName)
-                && pubApi.equals(other.pubApi);
+        return modifiers.equals(other.modifiers) && fqName.equals(other.fqName) && pubApi.equals(other.pubApi);
     }
 
     @Override
@@ -64,7 +62,6 @@ public class PubType implements Serializable {
     @Override
     public String toString() {
         return String.format(
-                "%s[modifiers: %s, fqName: %s, pubApi: %s]",
-                getClass().getSimpleName(), modifiers, fqName, pubApi);
+                "%s[modifiers: %s, fqName: %s, pubApi: %s]", getClass().getSimpleName(), modifiers, fqName, pubApi);
     }
 }

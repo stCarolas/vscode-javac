@@ -26,10 +26,7 @@ import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
 import org.eclipse.lsp4j.*;
 
-/**
- * Global index of exported symbol declarations and references. such as classes, methods, and
- * fields.
- */
+/** Global index of exported symbol declarations and references. such as classes, methods, and fields. */
 class SymbolIndex {
 
     private final Path workspaceRoot;
@@ -45,9 +42,7 @@ class SymbolIndex {
     private final CompletableFuture<?> finishedInitialIndex = new CompletableFuture<>();
 
     SymbolIndex(
-            Path workspaceRoot,
-            Supplier<Collection<URI>> openFiles,
-            Function<URI, Optional<String>> activeContent) {
+            Path workspaceRoot, Supplier<Collection<URI>> openFiles, Function<URI, Optional<String>> activeContent) {
         this.workspaceRoot = workspaceRoot;
         this.openFiles = openFiles;
         this.activeContent = activeContent;
@@ -93,8 +88,8 @@ class SymbolIndex {
     /**
      * Guess the source path by looking at package declarations in .java files.
      *
-     * <p>For example, if the file src/com/example/Test.java has the package declaration `package
-     * com.example;` then the source root is `src`.
+     * <p>For example, if the file src/com/example/Test.java has the package declaration `package com.example;` then the
+     * source root is `src`.
      */
     Set<Path> sourcePath() {
         updateOpenFiles();
@@ -107,9 +102,7 @@ class SymbolIndex {
                     String packagePath = index.packageName.replace('.', File.separatorChar);
 
                     if (!dir.endsWith(packagePath)
-                            && !warnedPackageDirectoryConflict
-                                    .getOrDefault(uri, "?")
-                                    .equals(packagePath)) {
+                            && !warnedPackageDirectoryConflict.getOrDefault(uri, "?").equals(packagePath)) {
                         LOG.warning("Java source file " + uri + " is not in " + packagePath);
 
                         warnedPackageDirectoryConflict.put(uri, packagePath);
@@ -130,15 +123,12 @@ class SymbolIndex {
     Stream<SymbolInformation> search(String query) {
         updateOpenFiles();
 
-        Predicate<CharSequence> nameMatchesQuery =
-                name -> Completions.containsCharactersInOrder(name, query, true);
+        Predicate<CharSequence> nameMatchesQuery = name -> Completions.containsCharactersInOrder(name, query, true);
         Predicate<URI> fileMatchesQuery =
                 uri -> sourcePathFiles.get(uri).declarations.stream().anyMatch(nameMatchesQuery);
         Collection<URI> open = openFiles.get();
         Stream<URI> openFirst =
-                Stream.concat(
-                        open.stream(),
-                        sourcePathFiles.keySet().stream().filter(uri -> !open.contains(uri)));
+                Stream.concat(open.stream(), sourcePathFiles.keySet().stream().filter(uri -> !open.contains(uri)));
 
         return openFirst
                 .filter(fileMatchesQuery)
@@ -188,10 +178,7 @@ class SymbolIndex {
             @Override
             public Void visitMethod(MethodTree node, Void aVoid) {
                 boolean constructor = node.getName().contentEquals("<init>");
-                String name =
-                        constructor
-                                ? currentClass.get().getSimpleName().toString()
-                                : node.getName().toString();
+                String name = constructor ? currentClass.get().getSimpleName().toString() : node.getName().toString();
                 SymbolInformation info = new SymbolInformation();
 
                 info.setContainerName(qualifiedClassName());
@@ -257,12 +244,8 @@ class SymbolIndex {
         return sourcePathFiles.values().stream().flatMap(doAccessibleTopLevelClasses(fromPackage));
     }
 
-    private Function<SourceFileIndex, Stream<ReachableClass>> doAccessibleTopLevelClasses(
-            String fromPackage) {
-        return index ->
-                index.topLevelClasses
-                        .stream()
-                        .filter(c -> c.publicClass || c.packageName.equals(fromPackage));
+    private Function<SourceFileIndex, Stream<ReachableClass>> doAccessibleTopLevelClasses(String fromPackage) {
+        return index -> index.topLevelClasses.stream().filter(c -> c.publicClass || c.packageName.equals(fromPackage));
     }
 
     Stream<ReachableClass> allTopLevelClasses() {
@@ -280,24 +263,16 @@ class SymbolIndex {
     }
 
     private Optional<URI> doFindDeclaringFile(String qualifiedName) {
-        String packageName = Completions.mostIds(qualifiedName),
-                className = Completions.lastId(qualifiedName);
+        String packageName = Completions.mostIds(qualifiedName), className = Completions.lastId(qualifiedName);
         Predicate<Map.Entry<URI, SourceFileIndex>> containsClass =
                 entry -> {
                     SourceFileIndex index = entry.getValue();
 
                     return index.packageName.equals(packageName)
-                            && index.topLevelClasses
-                                    .stream()
-                                    .anyMatch(c -> c.className.equals(className));
+                            && index.topLevelClasses.stream().anyMatch(c -> c.className.equals(className));
                 };
 
-        return sourcePathFiles
-                .entrySet()
-                .stream()
-                .filter(containsClass)
-                .map(entry -> entry.getKey())
-                .findFirst();
+        return sourcePathFiles.entrySet().stream().filter(containsClass).map(entry -> entry.getKey()).findFirst();
     }
 
     /** Update a file in the index */
@@ -330,11 +305,9 @@ class SymbolIndex {
 
                                 Set<Modifier> methodFlags = method.getModifiers().getFlags();
 
-                                if (publicClass && methodFlags.contains(Modifier.PUBLIC))
-                                    publicConstructor = true;
+                                if (publicClass && methodFlags.contains(Modifier.PUBLIC)) publicConstructor = true;
                                 else if (!methodFlags.contains(Modifier.PROTECTED)
-                                        && !methodFlags.contains(Modifier.PRIVATE))
-                                    packagePrivateConstructor = true;
+                                        && !methodFlags.contains(Modifier.PRIVATE)) packagePrivateConstructor = true;
                             }
                         }
                     }
@@ -448,18 +421,14 @@ class SymbolIndex {
     /**
      * Adapted from java.util.String.
      *
-     * <p>The source is the character array being searched, and the target is the string being
-     * searched for.
+     * <p>The source is the character array being searched, and the target is the string being searched for.
      *
      * @param source the characters being searched.
      * @param target the characters being searched for.
      * @param fromIndex the index to begin searching from.
      */
     private static int indexOf(CharSequence source, CharSequence target, int fromIndex) {
-        int sourceOffset = 0,
-                sourceCount = source.length(),
-                targetOffset = 0,
-                targetCount = target.length();
+        int sourceOffset = 0, sourceCount = source.length(), targetOffset = 0, targetCount = target.length();
 
         if (fromIndex >= sourceCount) {
             return (targetCount == 0 ? sourceCount : -1);
@@ -484,9 +453,7 @@ class SymbolIndex {
             if (i <= max) {
                 int j = i + 1;
                 int end = j + targetCount - 1;
-                for (int k = targetOffset + 1;
-                        j < end && source.charAt(j) == target.charAt(k);
-                        j++, k++) ;
+                for (int k = targetOffset + 1; j < end && source.charAt(j) == target.charAt(k); j++, k++) ;
 
                 if (j == end) {
                     /* Found whole string. */

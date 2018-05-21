@@ -23,11 +23,8 @@ public class JavaPresentationCompilerTest {
             new JavaPresentationCompiler(Collections.emptySet(), Collections.emptySet());
 
     private String contents(String resourceFile) {
-        try (InputStream in =
-                JavaPresentationCompilerTest.class.getResourceAsStream(resourceFile)) {
-            return new BufferedReader(new InputStreamReader(in))
-                    .lines()
-                    .collect(Collectors.joining("\n"));
+        try (InputStream in = JavaPresentationCompilerTest.class.getResourceAsStream(resourceFile)) {
+            return new BufferedReader(new InputStreamReader(in)).lines().collect(Collectors.joining("\n"));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -35,9 +32,7 @@ public class JavaPresentationCompilerTest {
 
     @Test
     public void element() {
-        Element found =
-                compiler.element(
-                        URI.create("/HelloWorld.java"), contents("/HelloWorld.java"), 3, 24);
+        Element found = compiler.element(URI.create("/HelloWorld.java"), contents("/HelloWorld.java"), 3, 24);
 
         assertThat(found.getSimpleName(), hasToString(containsString("println")));
     }
@@ -52,8 +47,7 @@ public class JavaPresentationCompilerTest {
 
     @Test
     public void pruneMethods() {
-        Pruner pruner =
-                new Pruner(URI.create("/PruneMethods.java"), contents("/PruneMethods.java"));
+        Pruner pruner = new Pruner(URI.create("/PruneMethods.java"), contents("/PruneMethods.java"));
         pruner.prune(6, 19);
         String expected = contents("/PruneMethods_erased.java");
         assertThat(pruner.contents(), equalToIgnoringWhiteSpace(expected));
@@ -61,9 +55,7 @@ public class JavaPresentationCompilerTest {
 
     @Test
     public void pruneToEndOfBlock() {
-        Pruner pruner =
-                new Pruner(
-                        URI.create("/PruneToEndOfBlock.java"), contents("/PruneToEndOfBlock.java"));
+        Pruner pruner = new Pruner(URI.create("/PruneToEndOfBlock.java"), contents("/PruneToEndOfBlock.java"));
         pruner.prune(4, 18);
         String expected = contents("/PruneToEndOfBlock_erased.java");
         assertThat(pruner.contents(), equalToIgnoringWhiteSpace(expected));
@@ -73,12 +65,8 @@ public class JavaPresentationCompilerTest {
     public void identifiers() {
         List<Element> found =
                 compiler.scopeMembers(
-                        URI.create("/CompleteIdentifiers.java"),
-                        contents("/CompleteIdentifiers.java"),
-                        13,
-                        21);
-        List<String> names =
-                found.stream().map(e -> e.getSimpleName().toString()).collect(Collectors.toList());
+                        URI.create("/CompleteIdentifiers.java"), contents("/CompleteIdentifiers.java"), 13, 21);
+        List<String> names = found.stream().map(e -> e.getSimpleName().toString()).collect(Collectors.toList());
         assertThat(names, hasItem("completeLocal"));
         assertThat(names, hasItem("completeParam"));
         assertThat(names, hasItem("super"));
@@ -93,13 +81,8 @@ public class JavaPresentationCompilerTest {
     @Test
     public void members() {
         List<Element> found =
-                compiler.members(
-                        URI.create("/CompleteMembers.java"),
-                        contents("/CompleteMembers.java"),
-                        3,
-                        14);
-        List<String> names =
-                found.stream().map(e -> e.getSimpleName().toString()).collect(Collectors.toList());
+                compiler.members(URI.create("/CompleteMembers.java"), contents("/CompleteMembers.java"), 3, 14);
+        List<String> names = found.stream().map(e -> e.getSimpleName().toString()).collect(Collectors.toList());
         assertThat(names, hasItem("subMethod"));
         assertThat(names, hasItem("superMethod"));
         assertThat(names, hasItem("equals"));
@@ -108,11 +91,7 @@ public class JavaPresentationCompilerTest {
     @Test
     public void gotoDefinition() {
         Optional<TreePath> def =
-                compiler.definition(
-                        URI.create("/GotoDefinition.java"),
-                        contents("/GotoDefinition.java"),
-                        3,
-                        12);
+                compiler.definition(URI.create("/GotoDefinition.java"), contents("/GotoDefinition.java"), 3, 12);
         assertTrue(def.isPresent());
 
         TreePath t = def.get();
@@ -130,11 +109,7 @@ public class JavaPresentationCompilerTest {
     @Test
     public void references() {
         List<TreePath> refs =
-                compiler.references(
-                        URI.create("/GotoDefinition.java"),
-                        contents("/GotoDefinition.java"),
-                        6,
-                        13);
+                compiler.references(URI.create("/GotoDefinition.java"), contents("/GotoDefinition.java"), 6, 13);
         boolean found = false;
         for (TreePath t : refs) {
             CompilationUnitTree unit = t.getCompilationUnit();
@@ -144,8 +119,7 @@ public class JavaPresentationCompilerTest {
             LineMap lines = unit.getLineMap();
             long start = pos.getStartPosition(unit, t.getLeaf());
             long line = lines.getLineNumber(start);
-            if (name.endsWith("GotoDefinition.java") && line == 3)
-                found = true;
+            if (name.endsWith("GotoDefinition.java") && line == 3) found = true;
         }
 
         if (!found) fail(String.format("No GotoDefinition.java line 3 in %s", found));

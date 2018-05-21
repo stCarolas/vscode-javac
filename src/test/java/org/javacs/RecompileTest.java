@@ -65,8 +65,7 @@ public class RecompileTest {
 
     private static JavacHolder newCompiler() {
         return JavacHolder.create(
-                Collections.singleton(Paths.get("src/test/test-project/workspace/src")),
-                Collections.emptySet());
+                Collections.singleton(Paths.get("src/test/test-project/workspace/src")), Collections.emptySet());
     }
 
     @Test

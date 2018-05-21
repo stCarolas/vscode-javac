@@ -58,12 +58,8 @@ class Lints {
         if (end == start) end = start + 1;
 
         return new Range(
-                new Position(
-                        source.getLineNumber((int) start) - 1,
-                        source.getColumnNumber((int) start, true) - 1),
-                new Position(
-                        source.getLineNumber((int) end) - 1,
-                        source.getColumnNumber((int) end, true) - 1));
+                new Position(source.getLineNumber((int) start) - 1, source.getColumnNumber((int) start, true) - 1),
+                new Position(source.getLineNumber((int) end) - 1, source.getColumnNumber((int) end, true) - 1));
     }
 
     private static final Logger LOG = Logger.getLogger("main");

@@ -6,8 +6,7 @@ import java.util.Optional;
 
 class FindCursor {
 
-    public static Optional<TreePath> find(
-            JavacTask task, CompilationUnitTree source, int line, int column) {
+    public static Optional<TreePath> find(JavacTask task, CompilationUnitTree source, int line, int column) {
         SourcePositions sourcePositions = Trees.instance(task).getSourcePositions();
         long offset = source.getLineMap().getPosition(line, column);
 

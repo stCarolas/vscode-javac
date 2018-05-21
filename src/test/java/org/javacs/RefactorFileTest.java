@@ -23,8 +23,7 @@ import org.junit.Test;
 public class RefactorFileTest {
 
     private static final Logger LOG = Logger.getLogger("main");
-    private static final URI FAKE_FILE =
-            URI.create("test/imaginary-resources/org/javacs/Example.java");
+    private static final URI FAKE_FILE = URI.create("test/imaginary-resources/org/javacs/Example.java");
 
     @Test
     public void addImportToEmpty() {
@@ -109,8 +108,7 @@ public class RefactorFileTest {
 
     @Test
     public void noPackage() {
-        String before =
-                "import java.util.List;\n" + "\n" + "public class Example { void main() { } }";
+        String before = "import java.util.List;\n" + "\n" + "public class Example { void main() { } }";
         List<TextEdit> edits = addImport(before, "org.javacs", "Foo");
         String after = applyEdits(before, edits);
 
@@ -129,12 +127,7 @@ public class RefactorFileTest {
         List<TextEdit> edits = addImport(before, "org.javacs", "Foo");
         String after = applyEdits(before, edits);
 
-        assertThat(
-                after,
-                equalTo(
-                        "import org.javacs.Foo;\n"
-                                + "\n"
-                                + "public class Example { void main() { } }"));
+        assertThat(after, equalTo("import org.javacs.Foo;\n" + "\n" + "public class Example { void main() { } }"));
     }
 
     private List<TextEdit> addImport(String content, String packageName, String className) {
@@ -145,14 +138,12 @@ public class RefactorFileTest {
                         Collections.emptySet());
         BiConsumer<JavacTask, CompilationUnitTree> doRefactor =
                 (task, tree) -> {
-                    List<TextEdit> edits =
-                            new RefactorFile(task, tree).addImport(packageName, className);
+                    List<TextEdit> edits = new RefactorFile(task, tree).addImport(packageName, className);
 
                     result.addAll(edits);
                 };
 
-        compiler.compileBatch(
-                Collections.singletonMap(FAKE_FILE, Optional.of(content)), doRefactor);
+        compiler.compileBatch(Collections.singletonMap(FAKE_FILE, Optional.of(content)), doRefactor);
 
         return result;
     }
@@ -166,15 +157,12 @@ public class RefactorFileTest {
     }
 
     private int compareEdits(TextEdit left, TextEdit right) {
-        int compareLines =
-                -Integer.compare(
-                        left.getRange().getEnd().getLine(), right.getRange().getEnd().getLine());
+        int compareLines = -Integer.compare(left.getRange().getEnd().getLine(), right.getRange().getEnd().getLine());
 
         if (compareLines != 0) return compareLines;
         else
             return -Integer.compare(
-                    left.getRange().getStart().getCharacter(),
-                    right.getRange().getEnd().getCharacter());
+                    left.getRange().getStart().getCharacter(), right.getRange().getEnd().getCharacter());
     }
 
     private void applyEdit(StringBuffer buffer, TextEdit edit) {

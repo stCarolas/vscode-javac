@@ -17,19 +17,10 @@ public class InferConfigTest {
     private Artifact externalArtifact = new Artifact("com.external", "external-library", "1.2");
     private List<Artifact> externalDependencies = ImmutableList.of(externalArtifact);
     private InferConfig both =
-            new InferConfig(
-                    workspaceRoot,
-                    externalDependencies,
-                    Collections.emptyList(),
-                    mavenHome,
-                    gradleHome);
+            new InferConfig(workspaceRoot, externalDependencies, Collections.emptyList(), mavenHome, gradleHome);
     private InferConfig gradle =
             new InferConfig(
-                    workspaceRoot,
-                    externalDependencies,
-                    Collections.emptyList(),
-                    Paths.get("nowhere"),
-                    gradleHome);
+                    workspaceRoot, externalDependencies, Collections.emptyList(), Paths.get("nowhere"), gradleHome);
     private InferConfig onlyPomXml =
             new InferConfig(
                     Paths.get("src/test/test-project/only-pom-xml"),
@@ -40,19 +31,13 @@ public class InferConfigTest {
     private Path libraryJar = Paths.get("lib/library.jar");
     private InferConfig settingsClassPath =
             new InferConfig(
-                    workspaceRoot,
-                    Collections.emptyList(),
-                    ImmutableList.of(libraryJar),
-                    mavenHome,
-                    gradleHome);
+                    workspaceRoot, Collections.emptyList(), ImmutableList.of(libraryJar), mavenHome, gradleHome);
 
     @Test
     public void mavenClassPath() {
         assertThat(
                 both.buildClassPath(),
-                contains(
-                        mavenHome.resolve(
-                                "repository/com/external/external-library/1.2/external-library-1.2.jar")));
+                contains(mavenHome.resolve("repository/com/external/external-library/1.2/external-library-1.2.jar")));
         // v1.1 should be ignored
     }
 
@@ -88,18 +73,14 @@ public class InferConfigTest {
 
     @Test
     public void dependencyList() {
-        assertThat(
-                InferConfig.dependencyList(Paths.get("pom.xml")),
-                hasItem(new Artifact("com.sun", "tools", "1.8")));
+        assertThat(InferConfig.dependencyList(Paths.get("pom.xml")), hasItem(new Artifact("com.sun", "tools", "1.8")));
     }
 
     @Test
     public void onlyPomXmlClassPath() {
         assertThat(
                 onlyPomXml.buildClassPath(),
-                contains(
-                        mavenHome.resolve(
-                                "repository/com/external/external-library/1.2/external-library-1.2.jar")));
+                contains(mavenHome.resolve("repository/com/external/external-library/1.2/external-library-1.2.jar")));
     }
 
     @Test

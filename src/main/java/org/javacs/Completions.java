@@ -43,11 +43,7 @@ class Completions {
     private final CursorContext context;
 
     private Completions(
-            JavacTask task,
-            ClassPathIndex classPath,
-            SymbolIndex sourcePath,
-            Javadocs docs,
-            TreePath path) {
+            JavacTask task, ClassPathIndex classPath, SymbolIndex sourcePath, Javadocs docs, TreePath path) {
         this.task = task;
         this.trees = Trees.instance(task);
         this.elements = task.getElements();
@@ -69,12 +65,10 @@ class Completions {
             MemberSelectTree select = (MemberSelectTree) leaf;
             TreePath expressionPath = new TreePath(path.getParentPath(), select.getExpression());
 
-            return completeMembers(
-                    expressionPath, partialIdentifier(select.getIdentifier()), scope);
+            return completeMembers(expressionPath, partialIdentifier(select.getIdentifier()), scope);
         } else if (leaf instanceof MemberReferenceTree) {
             MemberReferenceTree select = (MemberReferenceTree) leaf;
-            TreePath expressionPath =
-                    new TreePath(path.getParentPath(), select.getQualifierExpression());
+            TreePath expressionPath = new TreePath(path.getParentPath(), select.getQualifierExpression());
 
             return completeMembers(expressionPath, partialIdentifier(select.getName()), scope);
         } else if (leaf instanceof IdentifierTree) {
@@ -97,18 +91,13 @@ class Completions {
             case NewClass:
                 {
                     Predicate<ExecutableElement> accessible =
-                            init ->
-                                    trees.isAccessible(
-                                            from,
-                                            init,
-                                            (DeclaredType) init.getEnclosingElement().asType());
+                            init -> trees.isAccessible(from, init, (DeclaredType) init.getEnclosingElement().asType());
                     Stream<CompletionItem> alreadyImported =
                             alreadyImportedCompletions(partialIdentifier, from)
                                     .flatMap(this::explodeConstructors)
                                     .filter(accessible)
                                     .flatMap(this::completionItem);
-                    Stream<CompletionItem> notYetImported =
-                            notImportedConstructors(partialIdentifier, from);
+                    Stream<CompletionItem> notYetImported = notImportedConstructors(partialIdentifier, from);
 
                     return Stream.concat(alreadyImported, notYetImported);
                 }
@@ -118,13 +107,11 @@ class Completions {
                             e -> {
                                 if (e == null) return false;
                                 // Class names
-                                else if (e instanceof TypeElement)
-                                    return trees.isAccessible(from, (TypeElement) e);
+                                else if (e instanceof TypeElement) return trees.isAccessible(from, (TypeElement) e);
                                 else if (e.getEnclosingElement() == null) return false;
                                 // Members of other classes
                                 else if (e.getEnclosingElement() instanceof DeclaredType)
-                                    return trees.isAccessible(
-                                            from, e, (DeclaredType) e.getEnclosingElement());
+                                    return trees.isAccessible(from, e, (DeclaredType) e.getEnclosingElement());
                                 // Local variables
                                 else return true;
                             };
@@ -132,8 +119,7 @@ class Completions {
                             alreadyImportedCompletions(partialIdentifier, from)
                                     .filter(accessible)
                                     .flatMap(this::completionItem);
-                    Stream<CompletionItem> notYetImported =
-                            notImportedClasses(partialIdentifier, from);
+                    Stream<CompletionItem> notYetImported = notImportedClasses(partialIdentifier, from);
 
                     return Stream.concat(alreadyImported, notYetImported);
                 }
@@ -141,17 +127,12 @@ class Completions {
     }
 
     /** Suggest all accessible members of expression */
-    private Stream<CompletionItem> completeMembers(
-            TreePath expression, String partialIdentifier, Scope from) {
+    private Stream<CompletionItem> completeMembers(TreePath expression, String partialIdentifier, Scope from) {
         switch (context) {
             case NewClass:
                 {
                     Predicate<ExecutableElement> isAccessible =
-                            init ->
-                                    trees.isAccessible(
-                                            from,
-                                            init,
-                                            (DeclaredType) init.getEnclosingElement().asType());
+                            init -> trees.isAccessible(from, init, (DeclaredType) init.getEnclosingElement().asType());
                     return allMembers(expression, partialIdentifier, from, false)
                             .flatMap(this::explodeConstructors)
                             .filter(isAccessible)
@@ -161,22 +142,16 @@ class Completions {
                 {
                     Predicate<Element> isAccessible =
                             member ->
-                                    !(member instanceof TypeElement)
-                                            || trees.isAccessible(from, (TypeElement) member);
+                                    !(member instanceof TypeElement) || trees.isAccessible(from, (TypeElement) member);
                     return allMembers(expression, partialIdentifier, from, false)
                             .filter(isAccessible)
                             .flatMap(this::completionItem);
                 }
             default:
                 {
-                    DeclaredType type =
-                            (DeclaredType) task.getTypes().erasure(trees.getTypeMirror(expression));
+                    DeclaredType type = (DeclaredType) task.getTypes().erasure(trees.getTypeMirror(expression));
 
-                    return allMembers(
-                                    expression,
-                                    partialIdentifier,
-                                    from,
-                                    context == CursorContext.Reference)
+                    return allMembers(expression, partialIdentifier, from, context == CursorContext.Reference)
                             .filter(member -> member.getKind() != ElementKind.CONSTRUCTOR)
                             .filter(e -> trees.isAccessible(from, e, type))
                             .flatMap(this::completionItem);
@@ -228,30 +203,21 @@ class Completions {
         }
         // myValue.?
         else {
-            DeclaredType type =
-                    (DeclaredType) task.getTypes().erasure(trees.getTypeMirror(expression));
-            List<? extends Element> members =
-                    elements.getAllMembers((TypeElement) type.asElement());
+            DeclaredType type = (DeclaredType) task.getTypes().erasure(trees.getTypeMirror(expression));
+            List<? extends Element> members = elements.getAllMembers((TypeElement) type.asElement());
 
             return members.stream()
                     .filter(e -> !e.getModifiers().contains(Modifier.STATIC))
-                    .filter(
-                            e ->
-                                    containsCharactersInOrder(
-                                            e.getSimpleName(), partialIdentifier, false));
+                    .filter(e -> containsCharactersInOrder(e.getSimpleName(), partialIdentifier, false));
         }
     }
 
-    private Stream<? extends Element> packageMembers(
-            String parentPackage, String partialIdentifier) {
+    private Stream<? extends Element> packageMembers(String parentPackage, String partialIdentifier) {
         // Source-path packages that match parentPackage.partialIdentifier
         Stream<PackageElement> packages = subPackages(parentPackage, partialIdentifier);
-        Stream<TypeElement> sourcePathClasses =
-                sourcePathClassesInPackage(parentPackage, partialIdentifier);
+        Stream<TypeElement> sourcePathClasses = sourcePathClassesInPackage(parentPackage, partialIdentifier);
         Stream<TypeElement> classPathClasses =
-                classPath
-                        .topLevelClassesIn(parentPackage, partialIdentifier)
-                        .flatMap(this::loadFromClassPath);
+                classPath.topLevelClassesIn(parentPackage, partialIdentifier).flatMap(this::loadFromClassPath);
 
         return Stream.concat(packages, Stream.concat(sourcePathClasses, classPathClasses));
     }
@@ -284,9 +250,7 @@ class Completions {
             classPath.loadPackage(prefix + part).ifPresent(this::tryLoad);
         }
 
-        return next.stream()
-                .map(last -> elements.getPackageElement(prefix + last))
-                .filter(Objects::nonNull);
+        return next.stream().map(last -> elements.getPackageElement(prefix + last)).filter(Objects::nonNull);
     }
 
     private boolean isAlreadyImported(String qualifiedName) {
@@ -375,8 +339,7 @@ class Completions {
     }
 
     private CompletionItem completeConstructorFromClassPath(Class<?> c) {
-        return completeConstructor(
-                c.getPackage().getName(), c.getSimpleName(), c.getTypeParameters().length > 0);
+        return completeConstructor(c.getPackage().getName(), c.getSimpleName(), c.getTypeParameters().length > 0);
     }
 
     /** Suggest classes that haven't yet been imported, but are on the source or class path */
@@ -388,12 +351,10 @@ class Completions {
                         .map(c -> c.getName())
                         .filter(name -> !sourcePath.isTopLevelClass(name));
 
-        return Stream.concat(fromSourcePath, fromClassPath)
-                .map(this::completeClassNameFromClassPath);
+        return Stream.concat(fromSourcePath, fromClassPath).map(this::completeClassNameFromClassPath);
     }
 
-    private Stream<ClassPath.ClassInfo> accessibleClassPathClasses(
-            String partialIdentifier, Scope scope) {
+    private Stream<ClassPath.ClassInfo> accessibleClassPathClasses(String partialIdentifier, Scope scope) {
         String packageName = packageName(scope);
 
         return classPath
@@ -402,8 +363,7 @@ class Completions {
                 .filter(c -> classPath.isAccessibleFromPackage(c, packageName));
     }
 
-    private Stream<ReachableClass> accessibleSourcePathClasses(
-            String partialIdentifier, Scope scope) {
+    private Stream<ReachableClass> accessibleSourcePathClasses(String partialIdentifier, Scope scope) {
         String packageName = packageName(scope);
 
         return sourcePath
@@ -418,10 +378,8 @@ class Completions {
     }
 
     /** Suggest all completions that are visible from scope */
-    private Stream<? extends Element> alreadyImportedCompletions(
-            String partialIdentifier, Scope scope) {
-        Predicate<Element> matchesName =
-                e -> containsCharactersInOrder(e.getSimpleName(), partialIdentifier, false);
+    private Stream<? extends Element> alreadyImportedCompletions(String partialIdentifier, Scope scope) {
+        Predicate<Element> matchesName = e -> containsCharactersInOrder(e.getSimpleName(), partialIdentifier, false);
         return alreadyImportedSymbols(scope).filter(matchesName);
     }
 
@@ -442,8 +400,7 @@ class Completions {
         Collection<TypeElement> thisScopes = scopeClasses(thisScopes(scope));
         Collection<TypeElement> classScopes = classScopes(scope);
         List<Scope> methodScopes = methodScopes(scope);
-        Stream<? extends Element> staticImports =
-                compilationUnit.getImports().stream().flatMap(this::staticImports);
+        Stream<? extends Element> staticImports = compilationUnit.getImports().stream().flatMap(this::staticImports);
         Stream<? extends Element> elements = Stream.empty();
 
         if (!isStaticMethod(scope)) elements = Stream.concat(elements, thisAndSuper(scope));
@@ -456,15 +413,13 @@ class Completions {
         return elements;
     }
 
-    private Stream<TypeElement> sourcePathClassesInPackage(
-            String packageName, String partialClass) {
+    private Stream<TypeElement> sourcePathClassesInPackage(String packageName, String partialClass) {
         return sourcePath
                 .allTopLevelClasses()
                 .filter(
                         c ->
                                 c.packageName.equals(packageName)
-                                        && containsCharactersInOrder(
-                                                c.className, partialClass, false))
+                                        && containsCharactersInOrder(c.className, partialClass, false))
                 .map(ReachableClass::qualifiedName)
                 .flatMap(this::loadFromSourcePath);
     }
@@ -591,13 +546,11 @@ class Completions {
     }
 
     private Stream<? extends Element> locals(Scope scope) {
-        return StreamSupport.stream(scope.getLocalElements().spliterator(), false)
-                .filter(e -> !isThisOrSuper(e));
+        return StreamSupport.stream(scope.getLocalElements().spliterator(), false).filter(e -> !isThisOrSuper(e));
     }
 
     private Stream<? extends Element> thisAndSuper(Scope scope) {
-        return StreamSupport.stream(scope.getLocalElements().spliterator(), false)
-                .filter(e -> isThisOrSuper(e));
+        return StreamSupport.stream(scope.getLocalElements().spliterator(), false).filter(e -> isThisOrSuper(e));
     }
 
     private boolean isStaticMethod(Scope scope) {
@@ -617,19 +570,16 @@ class Completions {
         return name.equals(thisName) || name.equals(superName);
     }
 
-    private static final Command TRIGGER_SIGNATURE_HELP =
-            new Command("", "editor.action.triggerParameterHints");
+    private static final Command TRIGGER_SIGNATURE_HELP = new Command("", "editor.action.triggerParameterHints");
 
     /**
      * Complete constructor with minimal type information.
      *
-     * <p>This is important when we're autocompleting new ? with a class that we haven't yet
-     * imported. We don't yet have detailed type information or javadocs, and it's expensive to
-     * retrieve them. So we autocomplete a minimal constructor, and let signature-help fill in the
-     * details.
+     * <p>This is important when we're autocompleting new ? with a class that we haven't yet imported. We don't yet have
+     * detailed type information or javadocs, and it's expensive to retrieve them. So we autocomplete a minimal
+     * constructor, and let signature-help fill in the details.
      */
-    private CompletionItem completeConstructor(
-            String packageName, String className, boolean hasTypeParameters) {
+    private CompletionItem completeConstructor(String packageName, String className, boolean hasTypeParameters) {
         CompletionItem item = new CompletionItem();
         String qualifiedName = packageName.isEmpty() ? className : packageName + "." + className;
         String key = String.format("%s#<init>", className);
@@ -702,11 +652,9 @@ class Completions {
                         item.setInsertText(name);
 
                         PackageElement classPackage = elements.getPackageOf(e);
-                        if (classPackage != null)
-                            item.setDetail(classPackage.getQualifiedName().toString());
+                        if (classPackage != null) item.setDetail(classPackage.getQualifiedName().toString());
 
-                        item.setAdditionalTextEdits(
-                                addImport(((TypeElement) e).getQualifiedName().toString()));
+                        item.setAdditionalTextEdits(addImport(((TypeElement) e).getQualifiedName().toString()));
                         item.setSortText(order + "/" + name);
                         item.setData(type.getQualifiedName().toString());
 
@@ -738,10 +686,7 @@ class Completions {
                         CompletionItem item = new CompletionItem();
                         boolean isField = e.getEnclosingElement().getKind() == ElementKind.CLASS;
 
-                        item.setKind(
-                                isField
-                                        ? CompletionItemKind.Property
-                                        : CompletionItemKind.Variable);
+                        item.setKind(isField ? CompletionItemKind.Property : CompletionItemKind.Variable);
                         item.setLabel(name);
                         item.setDetail(ShortTypePrinter.print(e.asType()));
                         item.setSortText(String.format("%s/%s", isField ? 1 : 0, name));
@@ -780,10 +725,7 @@ class Completions {
                 case CONSTRUCTOR:
                     {
                         TypeElement enclosingClass = (TypeElement) e.getEnclosingElement();
-                        int order =
-                                isAlreadyImported(enclosingClass.getQualifiedName().toString())
-                                        ? 2
-                                        : 3;
+                        int order = isAlreadyImported(enclosingClass.getQualifiedName().toString()) ? 2 : 3;
                         name = enclosingClass.getSimpleName().toString();
 
                         ExecutableElement method = (ExecutableElement) e;
@@ -801,8 +743,7 @@ class Completions {
                         item.setInsertTextFormat(InsertTextFormat.Snippet);
                         item.setCommand(TRIGGER_SIGNATURE_HELP);
                         item.setFilterText(name);
-                        item.setAdditionalTextEdits(
-                                addImport(enclosingClass.getQualifiedName().toString()));
+                        item.setAdditionalTextEdits(addImport(enclosingClass.getQualifiedName().toString()));
                         item.setSortText(order + "/" + name);
                         item.setData(docs.methodKey(method));
 
@@ -840,8 +781,7 @@ class Completions {
 
     private List<TextEdit> addImport(String qualifiedName) {
         if (!isAlreadyImported(qualifiedName) && CursorContext.from(path) != CursorContext.Import)
-            return new RefactorFile(task, compilationUnit)
-                    .addImport(mostIds(qualifiedName), lastId(qualifiedName));
+            return new RefactorFile(task, compilationUnit).addImport(mostIds(qualifiedName), lastId(qualifiedName));
         else return Collections.emptyList();
     }
 

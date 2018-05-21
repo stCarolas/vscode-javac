@@ -20,8 +20,7 @@ import org.eclipse.lsp4j.SignatureHelp;
 import org.eclipse.lsp4j.SignatureInformation;
 
 class Signatures {
-    static Optional<SignatureHelp> help(
-            FocusedResult compiled, int line, int column, Javadocs docs) {
+    static Optional<SignatureHelp> help(FocusedResult compiled, int line, int column, Javadocs docs) {
         long offset = compiled.compilationUnit.getLineMap().getPosition(line, column);
 
         return compiled.cursor.flatMap(c -> new Signatures(c, offset, compiled.task, docs).get());
@@ -53,8 +52,7 @@ class Signatures {
 
     private SignatureHelp constructorHelp(NewClassTree leaf) {
         Trees trees = Trees.instance(task);
-        TreePath identifierPath =
-                TreePath.getPath(cursor.getCompilationUnit(), leaf.getIdentifier());
+        TreePath identifierPath = TreePath.getPath(cursor.getCompilationUnit(), leaf.getIdentifier());
         Element classElement = trees.getElement(identifierPath);
         List<ExecutableElement> candidates =
                 classElement
@@ -64,16 +62,11 @@ class Signatures {
                         .map(method -> (ExecutableElement) method)
                         .collect(Collectors.toList());
         List<SignatureInformation> signatures =
-                candidates
-                        .stream()
-                        .map(member -> constructorInfo(member))
-                        .collect(Collectors.toList());
+                candidates.stream().map(member -> constructorInfo(member)).collect(Collectors.toList());
         int activeSignature = candidates.indexOf(classElement);
 
         return new SignatureHelp(
-                signatures,
-                activeSignature < 0 ? null : activeSignature,
-                activeParameter(leaf.getArguments()));
+                signatures, activeSignature < 0 ? null : activeSignature, activeParameter(leaf.getArguments()));
     }
 
     private SignatureHelp methodHelp(MethodInvocationTree leaf) {
@@ -86,10 +79,7 @@ class Signatures {
                         .getEnclosingElement()
                         .getEnclosedElements()
                         .stream()
-                        .filter(
-                                member ->
-                                        member.getKind() == ElementKind.METHOD
-                                                && member.getSimpleName().equals(name))
+                        .filter(member -> member.getKind() == ElementKind.METHOD && member.getSimpleName().equals(name))
                         .map(method -> (ExecutableElement) method)
                         .collect(Collectors.toList());
         List<SignatureInformation> signatures =
@@ -97,9 +87,7 @@ class Signatures {
         int activeSignature = candidates.indexOf(methodElement);
 
         return new SignatureHelp(
-                signatures,
-                activeSignature < 0 ? null : activeSignature,
-                activeParameter(leaf.getArguments()));
+                signatures, activeSignature < 0 ? null : activeSignature, activeParameter(leaf.getArguments()));
     }
 
     private SignatureInformation constructorInfo(ExecutableElement method) {
@@ -110,22 +98,16 @@ class Signatures {
                         .map(Javadocs::firstSentence);
 
         return new SignatureInformation(
-                Hovers.methodSignature(method, false, true),
-                docText.orElse(null),
-                paramInfo(method));
+                Hovers.methodSignature(method, false, true), docText.orElse(null), paramInfo(method));
     }
 
     private SignatureInformation methodInfo(ExecutableElement method) {
         Optional<MethodDoc> doc = docs.methodDoc(docs.methodKey(method));
         Optional<String> docText =
-                doc.flatMap(Javadocs::commentText)
-                        .map(Javadocs::htmlToMarkdown)
-                        .map(Javadocs::firstSentence);
+                doc.flatMap(Javadocs::commentText).map(Javadocs::htmlToMarkdown).map(Javadocs::firstSentence);
 
         return new SignatureInformation(
-                Hovers.methodSignature(method, true, true),
-                docText.orElse(null),
-                paramInfo(method));
+                Hovers.methodSignature(method, true, true), docText.orElse(null), paramInfo(method));
     }
 
     private List<ParameterInformation> paramInfo(ExecutableElement method) {
@@ -135,9 +117,7 @@ class Signatures {
         for (VariableElement var : method.getParameters()) {
             boolean varargs = method.isVarArgs() && i == method.getParameters().size() - 1;
 
-            params.add(
-                    new ParameterInformation(
-                            Hovers.shortName(var, varargs), task.getElements().getDocComment(var)));
+            params.add(new ParameterInformation(Hovers.shortName(var, varargs), task.getElements().getDocComment(var)));
 
             i++;
         }

@@ -36,13 +36,10 @@ public class IncrementalFileManagerTest {
                 sig.types.get("com.example.Signatures").pubApi.methods.keySet(),
                 hasItems("void voidMethod()", "java.lang.String stringMethod()"));
         assertThat(
-                sig.types.get("com.example.Signatures").pubApi.methods.keySet(),
-                not(hasItems("void privateMethod()")));
+                sig.types.get("com.example.Signatures").pubApi.methods.keySet(), not(hasItems("void privateMethod()")));
         assertThat(
                 sig.types.get("com.example.Signatures").pubApi.types.keySet(),
-                hasItems(
-                        "com.example.Signatures$RegularInnerClass",
-                        "com.example.Signatures$StaticInnerClass"));
+                hasItems("com.example.Signatures$RegularInnerClass", "com.example.Signatures$StaticInnerClass"));
     }
 
     @Test
@@ -53,13 +50,10 @@ public class IncrementalFileManagerTest {
                 sig.types.get("com.example.Signatures").pubApi.methods.keySet(),
                 hasItems("void voidMethod()", "java.lang.String stringMethod()"));
         assertThat(
-                sig.types.get("com.example.Signatures").pubApi.methods.keySet(),
-                not(hasItems("void privateMethod()")));
+                sig.types.get("com.example.Signatures").pubApi.methods.keySet(), not(hasItems("void privateMethod()")));
         assertThat(
                 sig.types.get("com.example.Signatures").pubApi.types.keySet(),
-                hasItems(
-                        "com.example.Signatures$RegularInnerClass",
-                        "com.example.Signatures$StaticInnerClass"));
+                hasItems("com.example.Signatures$RegularInnerClass", "com.example.Signatures$StaticInnerClass"));
     }
 
     @Test

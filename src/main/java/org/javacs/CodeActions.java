@@ -23,12 +23,7 @@ class CodeActions {
     private final SymbolIndex index;
 
     CodeActions(
-            JavacHolder compiler,
-            URI file,
-            Optional<String> textContent,
-            int line,
-            int character,
-            SymbolIndex index) {
+            JavacHolder compiler, URI file, Optional<String> textContent, int line, int character, SymbolIndex index) {
         this.compiler = compiler;
         this.file = file;
         this.textContent = textContent;

@@ -58,20 +58,10 @@ public class Javadocs {
 
     private final Function<URI, Optional<String>> activeContent;
 
-    Javadocs(
-            Set<Path> sourcePath,
-            Set<Path> docPath,
-            Function<URI, Optional<String>> activeContent) {
+    Javadocs(Set<Path> sourcePath, Set<Path> docPath, Function<URI, Optional<String>> activeContent) {
         this.actualFileManager = createFileManager(allSourcePaths(sourcePath, docPath));
         this.task =
-                JavacTool.create()
-                        .getTask(
-                                null,
-                                emptyFileManager,
-                                JavaLanguageServer::onDiagnostic,
-                                null,
-                                null,
-                                null);
+                JavacTool.create().getTask(null, emptyFileManager, JavaLanguageServer::onDiagnostic, null, null, null);
         this.activeContent = activeContent;
     }
 
@@ -91,8 +81,7 @@ public class Javadocs {
 
     private static JavacFileManager createFileManager(Set<File> allSourcePaths) {
         JavacFileManager actualFileManager =
-                JavacTool.create()
-                        .getStandardFileManager(JavaLanguageServer::onDiagnostic, null, null);
+                JavacTool.create().getStandardFileManager(JavaLanguageServer::onDiagnostic, null, null);
 
         try {
             actualFileManager.setLocation(StandardLocation.SOURCE_PATH, allSourcePaths);
@@ -120,8 +109,7 @@ public class Javadocs {
     static Optional<String> commentText(MethodDoc doc) {
         // TODO search interfaces as well
 
-        while (doc != null && Strings.isNullOrEmpty(doc.commentText()))
-            doc = doc.overriddenMethod();
+        while (doc != null && Strings.isNullOrEmpty(doc.commentText())) doc = doc.overriddenMethod();
 
         if (doc == null || Strings.isNullOrEmpty(doc.commentText())) return Optional.empty();
         else return Optional.of(doc.commentText());
@@ -144,9 +132,7 @@ public class Javadocs {
 
         return String.format(
                 "%s#%s(%s)",
-                classElement.getQualifiedName(),
-                method.getSimpleName(),
-                paramsKey(method.getParameters()));
+                classElement.getQualifiedName(), method.getSimpleName(), paramsKey(method.getParameters()));
     }
 
     private String paramsKey(List<? extends VariableElement> params) {
@@ -171,9 +157,7 @@ public class Javadocs {
         String docKey =
                 String.format(
                         "%s#%s(%s)",
-                        doc.containingClass().qualifiedName(),
-                        doc.name(),
-                        paramSignature(doc.parameters()));
+                        doc.containingClass().qualifiedName(), doc.name(), paramSignature(doc.parameters()));
 
         return docKey.equals(methodKey);
     }
@@ -206,9 +190,7 @@ public class Javadocs {
 
     private boolean constructorMatches(String methodKey, ConstructorDoc doc) {
         String docKey =
-                String.format(
-                        "%s#<init>(%s)",
-                        doc.containingClass().qualifiedName(), paramSignature(doc.parameters()));
+                String.format("%s#<init>(%s)", doc.containingClass().qualifiedName(), paramSignature(doc.parameters()));
 
         return docKey.equals(methodKey);
     }
@@ -275,8 +257,7 @@ public class Javadocs {
             task.call();
 
             return new IndexedDoc(
-                    getSneakyReturn().orElse(EmptyRootDoc.INSTANCE),
-                    Instant.ofEpochMilli(fromDisk.getLastModified()));
+                    getSneakyReturn().orElse(EmptyRootDoc.INSTANCE), Instant.ofEpochMilli(fromDisk.getLastModified()));
         } catch (IOException e) {
             throw new RuntimeException();
         }
@@ -349,35 +330,23 @@ public class Javadocs {
         // my.package.MyClass#<init>()
         if (key.contains("<init>")) {
             constructorDoc(key)
-                    .ifPresent(
-                            doc ->
-                                    unresolved.setDocumentation(
-                                            Javadocs.htmlToMarkdown(doc.commentText())));
+                    .ifPresent(doc -> unresolved.setDocumentation(Javadocs.htmlToMarkdown(doc.commentText())));
         }
         // my.package.MyClass#myMethod()
         else if (key.contains("#")) {
-            methodDoc(key)
-                    .ifPresent(
-                            doc ->
-                                    unresolved.setDocumentation(
-                                            Javadocs.htmlToMarkdown(doc.commentText())));
+            methodDoc(key).ifPresent(doc -> unresolved.setDocumentation(Javadocs.htmlToMarkdown(doc.commentText())));
         }
         // my.package.MyClass
         else {
-            classDoc(key)
-                    .ifPresent(
-                            doc ->
-                                    unresolved.setDocumentation(
-                                            Javadocs.htmlToMarkdown(doc.commentText())));
+            classDoc(key).ifPresent(doc -> unresolved.setDocumentation(Javadocs.htmlToMarkdown(doc.commentText())));
         }
     }
 
     /**
      * Get the first sentence of a doc-comment.
      *
-     * <p>In general, VS Code does a good job of only displaying the beginning of a doc-comment
-     * where appropriate. But if VS Code is displaying too much and you want to only show the first
-     * sentence, use this.
+     * <p>In general, VS Code does a good job of only displaying the beginning of a doc-comment where appropriate. But
+     * if VS Code is displaying too much and you want to only show the first sentence, use this.
      */
     public static String firstSentence(String doc) {
         BreakIterator breaks = BreakIterator.getSentenceInstance();

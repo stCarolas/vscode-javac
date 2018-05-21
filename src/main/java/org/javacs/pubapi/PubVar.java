@@ -62,10 +62,7 @@ public class PubVar implements Serializable {
 
     @Override
     public int hashCode() {
-        return modifiers.hashCode()
-                ^ type.hashCode()
-                ^ identifier.hashCode()
-                ^ getConstValue().hashCode();
+        return modifiers.hashCode() ^ type.hashCode() ^ identifier.hashCode() ^ getConstValue().hashCode();
     }
 
     public String toString() {

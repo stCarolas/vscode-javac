@@ -10,20 +10,17 @@ import org.eclipse.lsp4j.services.LanguageClient;
 
 class LanguageServerFixture {
 
-    public static Path DEFAULT_WORKSPACE_ROOT =
-            Paths.get("src/test/test-project/workspace").toAbsolutePath();
+    public static Path DEFAULT_WORKSPACE_ROOT = Paths.get("src/test/test-project/workspace").toAbsolutePath();
 
     static {
         Main.setRootFormat();
     }
 
     static JavaLanguageServer getJavaLanguageServer() {
-        return getJavaLanguageServer(
-                DEFAULT_WORKSPACE_ROOT, diagnostic -> LOG.info(diagnostic.getMessage()));
+        return getJavaLanguageServer(DEFAULT_WORKSPACE_ROOT, diagnostic -> LOG.info(diagnostic.getMessage()));
     }
 
-    static JavaLanguageServer getJavaLanguageServer(
-            Path workspaceRoot, Consumer<Diagnostic> onError) {
+    static JavaLanguageServer getJavaLanguageServer(Path workspaceRoot, Consumer<Diagnostic> onError) {
         return getJavaLanguageServer(
                 workspaceRoot,
                 new LanguageClient() {
@@ -31,8 +28,7 @@ class LanguageServerFixture {
                     public void telemetryEvent(Object o) {}
 
                     @Override
-                    public void publishDiagnostics(
-                            PublishDiagnosticsParams publishDiagnosticsParams) {
+                    public void publishDiagnostics(PublishDiagnosticsParams publishDiagnosticsParams) {
                         publishDiagnosticsParams.getDiagnostics().forEach(onError);
                     }
 
@@ -50,8 +46,7 @@ class LanguageServerFixture {
                 });
     }
 
-    private static JavaLanguageServer getJavaLanguageServer(
-            Path workspaceRoot, LanguageClient client) {
+    private static JavaLanguageServer getJavaLanguageServer(Path workspaceRoot, LanguageClient client) {
         JavaLanguageServer server = new JavaLanguageServer();
         InitializeParams init = new InitializeParams();
 

@@ -21,9 +21,7 @@ class ChildFirstClassLoader extends URLClassLoader {
     }
 
     static URL[] parseClassPath(String classPath) {
-        return Arrays.stream(classPath.split(File.pathSeparator))
-                .map(ChildFirstClassLoader::parse)
-                .toArray(URL[]::new);
+        return Arrays.stream(classPath.split(File.pathSeparator)).map(ChildFirstClassLoader::parse).toArray(URL[]::new);
     }
 
     private static URL parse(String urlString) {
@@ -35,8 +33,7 @@ class ChildFirstClassLoader extends URLClassLoader {
         }
     }
 
-    static ChildFirstClassLoader fromClassPath(
-            String classPath, String[] packages, ClassLoader parent) {
+    static ChildFirstClassLoader fromClassPath(String classPath, String[] packages, ClassLoader parent) {
         return new ChildFirstClassLoader(parseClassPath(classPath), packages, parent);
     }
 

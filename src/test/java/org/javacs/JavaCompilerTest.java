@@ -27,24 +27,16 @@ public class JavaCompilerTest {
     public void javacTool() throws IOException {
         JavaCompiler javaCompiler = JavacTool.create();
         StandardJavaFileManager fileManager =
-                javaCompiler.getStandardFileManager(
-                        this::reportError, null, Charset.defaultCharset());
+                javaCompiler.getStandardFileManager(this::reportError, null, Charset.defaultCharset());
         List<String> options =
-                ImmutableList.of(
-                        "-sourcepath", Paths.get("src/test/resources").toAbsolutePath().toString());
+                ImmutableList.of("-sourcepath", Paths.get("src/test/resources").toAbsolutePath().toString());
         List<String> classes = Collections.emptyList();
         File file = Paths.get("src/test/resources/org/javacs/example/Bad.java").toFile();
         Iterable<? extends JavaFileObject> compilationUnits =
                 fileManager.getJavaFileObjectsFromFiles(Collections.singleton(file));
         JavacTask task =
                 (JavacTask)
-                        javaCompiler.getTask(
-                                null,
-                                fileManager,
-                                this::reportError,
-                                options,
-                                classes,
-                                compilationUnits);
+                        javaCompiler.getTask(null, fileManager, this::reportError, options, classes, compilationUnits);
 
         Iterable<? extends CompilationUnitTree> parsed = task.parse();
         Iterable<? extends Element> typed = task.analyze();
@@ -58,9 +50,7 @@ public class JavaCompilerTest {
                 JavacHolder.create(
                         Collections.singleton(Paths.get("src/test/test-project/workspace/src")),
                         Collections.emptySet());
-        File file =
-                Paths.get("src/test/test-project/workspace/src/org/javacs/example/Bad.java")
-                        .toFile();
+        File file = Paths.get("src/test/test-project/workspace/src/org/javacs/example/Bad.java").toFile();
         DiagnosticCollector<JavaFileObject> compile =
                 javac.compileBatch(Collections.singletonMap(file.toURI(), Optional.empty()));
     }

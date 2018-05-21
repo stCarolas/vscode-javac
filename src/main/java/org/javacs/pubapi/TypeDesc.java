@@ -70,8 +70,7 @@ public abstract class TypeDesc implements Serializable {
         if (td.typeKind.isPrimitive() || td.typeKind == TypeKind.VOID)
             return StringUtils.toLowerCase(td.typeKind.toString());
 
-        if (td.typeKind == TypeKind.ARRAY)
-            return encodeAsString(((ArrayTypeDesc) td).compTypeDesc) + "[]";
+        if (td.typeKind == TypeKind.ARRAY) return encodeAsString(((ArrayTypeDesc) td).compTypeDesc) + "[]";
 
         if (td.typeKind == TypeKind.TYPEVAR) return "#" + ((TypeVarTypeDesc) td).identifier;
 
@@ -115,9 +114,7 @@ public abstract class TypeDesc implements Serializable {
                 };
 
         TypeDesc td = v.visit(type);
-        if (td == null)
-            throw new AssertionError(
-                    "Unhandled type mirror: " + type + " (" + type.getClass() + ")");
+        if (td == null) throw new AssertionError("Unhandled type mirror: " + type + " (" + type.getClass() + ")");
         return td;
     }
 

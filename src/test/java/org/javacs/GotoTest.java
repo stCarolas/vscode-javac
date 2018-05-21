@@ -17,8 +17,7 @@ public class GotoTest {
     private static final String file = "/org/javacs/example/Goto.java";
     private static final URI uri = FindResource.uri(file),
             other = FindResource.uri("/org/javacs/example/GotoOther.java");
-    private static final String defaultConstructorFile =
-            "/org/javacs/example/GotoDefaultConstructor.java";
+    private static final String defaultConstructorFile = "/org/javacs/example/GotoDefaultConstructor.java";
     private static final URI defaultConstructorUri = FindResource.uri(defaultConstructorFile);
 
     @Test

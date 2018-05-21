@@ -35,8 +35,7 @@ class JavaLanguageServer implements LanguageServer {
     int maxItems = 50;
     private final CompletableFuture<LanguageClient> client = new CompletableFuture<>();
     private final JavaTextDocumentService textDocuments = new JavaTextDocumentService(client, this);
-    private final JavaWorkspaceService workspace =
-            new JavaWorkspaceService(client, this, textDocuments);
+    private final JavaWorkspaceService workspace = new JavaWorkspaceService(client, this, textDocuments);
     private Path workspaceRoot = Paths.get(".");
 
     private Configured cacheConfigured;
@@ -45,10 +44,7 @@ class JavaLanguageServer implements LanguageServer {
     private Instant cacheInferConfig = Instant.EPOCH;
     private Set<Path> cacheSourcePath = Collections.emptySet();
 
-    /**
-     * Configured java compiler + indices based on workspace settings and inferred source / class
-     * paths
-     */
+    /** Configured java compiler + indices based on workspace settings and inferred source / class paths */
     Configured configured() {
         Instant inferConfig = InferConfig.buildFilesModified(workspaceRoot);
 
@@ -70,32 +66,23 @@ class JavaLanguageServer implements LanguageServer {
     }
 
     private Configured createCompiler(JavaSettings settings, Path workspaceRoot) {
-        SymbolIndex index =
-                new SymbolIndex(
-                        workspaceRoot, textDocuments::openFiles, textDocuments::activeContent);
+        SymbolIndex index = new SymbolIndex(workspaceRoot, textDocuments::openFiles, textDocuments::activeContent);
         Set<Path> sourcePath = index.sourcePath();
         Path userHome = Paths.get(System.getProperty("user.home")),
                 mavenHome = userHome.resolve(".m2"),
                 gradleHome = userHome.resolve(".gradle");
-        List<Artifact> externalDependencies =
-                Lists.transform(settings.java.externalDependencies, Artifact::parse);
+        List<Artifact> externalDependencies = Lists.transform(settings.java.externalDependencies, Artifact::parse);
         List<Path> settingsClassPath = Lists.transform(settings.java.classPath, Paths::get);
 
         InferConfig infer =
-                new InferConfig(
-                        workspaceRoot,
-                        externalDependencies,
-                        settingsClassPath,
-                        mavenHome,
-                        gradleHome);
+                new InferConfig(workspaceRoot, externalDependencies, settingsClassPath, mavenHome, gradleHome);
         Set<Path> classPath = infer.buildClassPath(),
                 workspaceClassPath = infer.workspaceClassPath(),
                 docPath = infer.buildDocPath();
 
         // If user does not specify java.externalDependencies, look for javaconfig.json
         // This is for compatibility with the old behavior and should eventually be removed
-        if (settings.java.externalDependencies.isEmpty()
-                && Files.exists(workspaceRoot.resolve("javaconfig.json"))) {
+        if (settings.java.externalDependencies.isEmpty() && Files.exists(workspaceRoot.resolve("javaconfig.json"))) {
             LegacyConfig legacy = new LegacyConfig(workspaceRoot);
             Optional<JavacConfig> found = legacy.readJavaConfig(workspaceRoot);
 
@@ -110,8 +97,7 @@ class JavaLanguageServer implements LanguageServer {
         LOG.info("\tworkspaceClassPath:" + Joiner.on(' ').join(workspaceClassPath));
         LOG.info("\tdocPath:" + Joiner.on(' ').join(docPath));
 
-        JavacHolder compiler =
-                JavacHolder.create(sourcePath, Sets.union(classPath, workspaceClassPath));
+        JavacHolder compiler = JavacHolder.create(sourcePath, Sets.union(classPath, workspaceClassPath));
         Javadocs docs = new Javadocs(sourcePath, docPath, textDocuments::activeContent);
         FindSymbols find = new FindSymbols(index, compiler, textDocuments::activeContent);
 
@@ -124,10 +110,7 @@ class JavaLanguageServer implements LanguageServer {
 
     private void clearFileDiagnostics(Path file) {
         client.thenAccept(
-                c ->
-                        c.publishDiagnostics(
-                                new PublishDiagnosticsParams(
-                                        file.toUri().toString(), new ArrayList<>())));
+                c -> c.publishDiagnostics(new PublishDiagnosticsParams(file.toUri().toString(), new ArrayList<>())));
     }
 
     @Override
@@ -145,8 +128,7 @@ class JavaLanguageServer implements LanguageServer {
         c.setReferencesProvider(true);
         c.setDocumentSymbolProvider(true);
         c.setCodeActionProvider(true);
-        c.setExecuteCommandProvider(
-                new ExecuteCommandOptions(ImmutableList.of("Java.importClass")));
+        c.setExecuteCommandProvider(new ExecuteCommandOptions(ImmutableList.of("Java.importClass")));
         c.setSignatureHelpProvider(new SignatureHelpOptions(ImmutableList.of("(", ",")));
 
         result.setCapabilities(c);
@@ -174,11 +156,9 @@ class JavaLanguageServer implements LanguageServer {
 
     public Optional<Element> findSymbol(URI file, int line, int character) {
         Optional<String> content = textDocuments.activeContent(file);
-        FocusedResult result =
-                configured().compiler.compileFocused(file, content, line, character, false);
+        FocusedResult result = configured().compiler.compileFocused(file, content, line, character, false);
         Trees trees = Trees.instance(result.task);
-        Function<TreePath, Optional<Element>> findSymbol =
-                cursor -> Optional.ofNullable(trees.getElement(cursor));
+        Function<TreePath, Optional<Element>> findSymbol = cursor -> Optional.ofNullable(trees.getElement(cursor));
 
         return result.cursor.flatMap(findSymbol);
     }
@@ -199,9 +179,7 @@ class JavaLanguageServer implements LanguageServer {
                             message += "\n" + trace;
                         }
 
-                        client.logMessage(
-                                new MessageParams(
-                                        messageType(record.getLevel().intValue()), message));
+                        client.logMessage(new MessageParams(messageType(record.getLevel().intValue()), message));
                     }
 
                     private MessageType messageType(int level) {
@@ -251,9 +229,7 @@ class JavaLanguageServer implements LanguageServer {
     void compile(URI file) {
         Objects.requireNonNull(file, "file is null");
 
-        configured()
-                .compiler
-                .compileBatch(Collections.singletonMap(file, textDocuments.activeContent(file)));
+        configured().compiler.compileBatch(Collections.singletonMap(file, textDocuments.activeContent(file)));
     }
 
     private static String jsonStringify(Object value) {

@@ -24,10 +24,7 @@ import javax.tools.*;
 import javax.tools.JavaFileObject.Kind;
 import org.javacs.pubapi.*;
 
-/**
- * An implementation of JavaFileManager that removes any .java source files where there is an
- * up-to-date .class file
- */
+/** An implementation of JavaFileManager that removes any .java source files where there is an up-to-date .class file */
 class IncrementalFileManager extends ForwardingJavaFileManager<JavaFileManager> {
     private final Set<URI> warnedHidden = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final JavacTool javac = JavacTool.create();
@@ -42,23 +39,20 @@ class IncrementalFileManager extends ForwardingJavaFileManager<JavaFileManager> 
                     public Iterable<JavaFileObject> list(
                             Location location, String packageName, Set<Kind> kinds, boolean recurse)
                             throws IOException {
-                        if (location == StandardLocation.SOURCE_PATH)
-                            kinds = Sets.filter(kinds, k -> k != Kind.SOURCE);
+                        if (location == StandardLocation.SOURCE_PATH) kinds = Sets.filter(kinds, k -> k != Kind.SOURCE);
 
                         return super.list(location, packageName, kinds, recurse);
                     }
 
                     @Override
                     public JavaFileObject getJavaFileForInput(
-                            Location location, String className, JavaFileObject.Kind kind)
-                            throws IOException {
+                            Location location, String className, JavaFileObject.Kind kind) throws IOException {
                         if (kind == Kind.SOURCE) return null;
                         else return super.getJavaFileForInput(location, className, kind);
                     }
 
                     @Override
-                    public FileObject getFileForInput(
-                            Location location, String packageName, String relativeName)
+                    public FileObject getFileForInput(Location location, String packageName, String relativeName)
                             throws IOException {
                         if (location == StandardLocation.SOURCE_PATH) return null;
                         else return super.getFileForInput(location, packageName, relativeName);
@@ -67,8 +61,7 @@ class IncrementalFileManager extends ForwardingJavaFileManager<JavaFileManager> 
     }
 
     @Override
-    public Iterable<JavaFileObject> list(
-            Location location, String packageName, Set<Kind> kinds, boolean recurse)
+    public Iterable<JavaFileObject> list(Location location, String packageName, Set<Kind> kinds, boolean recurse)
             throws IOException {
         Iterable<JavaFileObject> list = super.list(location, packageName, kinds, recurse);
 
@@ -78,29 +71,24 @@ class IncrementalFileManager extends ForwardingJavaFileManager<JavaFileManager> 
     }
 
     @Override
-    public JavaFileObject getJavaFileForInput(
-            Location location, String className, JavaFileObject.Kind kind) throws IOException {
-        if (location == StandardLocation.SOURCE_PATH && hasUpToDateClassFile(className))
-            return null;
+    public JavaFileObject getJavaFileForInput(Location location, String className, JavaFileObject.Kind kind)
+            throws IOException {
+        if (location == StandardLocation.SOURCE_PATH && hasUpToDateClassFile(className)) return null;
         else return super.getJavaFileForInput(location, className, kind);
     }
 
     @Override
-    public FileObject getFileForInput(Location location, String packageName, String relativeName)
-            throws IOException {
+    public FileObject getFileForInput(Location location, String packageName, String relativeName) throws IOException {
         String className = packageName.isEmpty() ? relativeName : packageName + "." + relativeName;
 
-        if (location == StandardLocation.SOURCE_PATH && hasUpToDateClassFile(className))
-            return null;
+        if (location == StandardLocation.SOURCE_PATH && hasUpToDateClassFile(className)) return null;
         else return super.getFileForInput(location, packageName, relativeName);
     }
 
     private boolean hasUpToDateClassFiles(String packageName, JavaFileObject sourceFile) {
         Optional<JavaFileObject> outputFile = primaryClassFile(packageName, sourceFile);
         boolean hidden =
-                outputFile.isPresent()
-                                && outputFile.get().getLastModified()
-                                        >= sourceFile.getLastModified()
+                outputFile.isPresent() && outputFile.get().getLastModified() >= sourceFile.getLastModified()
                         || hasUpToDateSignatures(packageName, sourceFile);
 
         if (hidden && !warnedHidden.contains(sourceFile.toUri())) {
@@ -115,8 +103,8 @@ class IncrementalFileManager extends ForwardingJavaFileManager<JavaFileManager> 
     /**
      * Cache of whether a particular source file had up-to-date class files at a particular time.
      *
-     * <p>We're going to assume that if there were up-to-date class files, and the lastModified time
-     * of the source file has not changed, there are still up-to-date class files.
+     * <p>We're going to assume that if there were up-to-date class files, and the lastModified time of the source file
+     * has not changed, there are still up-to-date class files.
      */
     private Map<CheckedSignature, Boolean> upToDate = new HashMap<>();
 
@@ -134,8 +122,7 @@ class IncrementalFileManager extends ForwardingJavaFileManager<JavaFileManager> 
             if (maybe instanceof CheckedSignature) {
                 CheckedSignature that = (CheckedSignature) maybe;
 
-                return this.sourceUri.equals(that.sourceUri)
-                        && this.lastModified.equals(that.lastModified);
+                return this.sourceUri.equals(that.sourceUri) && this.lastModified.equals(that.lastModified);
             } else return false;
         }
 
@@ -147,8 +134,7 @@ class IncrementalFileManager extends ForwardingJavaFileManager<JavaFileManager> 
 
     private boolean hasUpToDateSignatures(String packageName, JavaFileObject sourceFile) {
         CheckedSignature key =
-                new CheckedSignature(
-                        sourceFile.toUri(), Instant.ofEpochMilli(sourceFile.getLastModified()));
+                new CheckedSignature(sourceFile.toUri(), Instant.ofEpochMilli(sourceFile.getLastModified()));
 
         return upToDate.computeIfAbsent(key, __ -> computeUpToDate(packageName, sourceFile));
     }
@@ -176,15 +162,12 @@ class IncrementalFileManager extends ForwardingJavaFileManager<JavaFileManager> 
                     if (!hasUpToDateSignature(qualifiedName)) {
                         JavaFileObject classFile =
                                 super.getJavaFileForInput(
-                                        StandardLocation.CLASS_PATH,
-                                        qualifiedName,
-                                        JavaFileObject.Kind.CLASS);
+                                        StandardLocation.CLASS_PATH, qualifiedName, JavaFileObject.Kind.CLASS);
 
                         if (classFile != null) {
                             LOG.warning(
                                     String.format(
-                                            "%s has a different signature than %s",
-                                            sourceFile.toUri(), classFile));
+                                            "%s has a different signature than %s", sourceFile.toUri(), classFile));
                         }
 
                         return false;
@@ -203,16 +186,13 @@ class IncrementalFileManager extends ForwardingJavaFileManager<JavaFileManager> 
         }
     }
 
-    private Optional<JavaFileObject> primaryClassFile(
-            String packageName, JavaFileObject sourceFile) {
+    private Optional<JavaFileObject> primaryClassFile(String packageName, JavaFileObject sourceFile) {
         String primaryClassName = primaryClassSimpleName(sourceFile);
-        String qualifiedName =
-                packageName.isEmpty() ? primaryClassName : packageName + "." + primaryClassName;
+        String qualifiedName = packageName.isEmpty() ? primaryClassName : packageName + "." + primaryClassName;
 
         try {
             return Optional.ofNullable(
-                    super.getJavaFileForInput(
-                            StandardLocation.CLASS_PATH, qualifiedName, JavaFileObject.Kind.CLASS));
+                    super.getJavaFileForInput(StandardLocation.CLASS_PATH, qualifiedName, JavaFileObject.Kind.CLASS));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -235,18 +215,13 @@ class IncrementalFileManager extends ForwardingJavaFileManager<JavaFileManager> 
             JavaFileObject
                     sourceFile =
                             super.getJavaFileForInput(
-                                    StandardLocation.SOURCE_PATH,
-                                    qualifiedName,
-                                    JavaFileObject.Kind.SOURCE),
+                                    StandardLocation.SOURCE_PATH, qualifiedName, JavaFileObject.Kind.SOURCE),
                     outputFile =
                             super.getJavaFileForInput(
-                                    StandardLocation.CLASS_PATH,
-                                    qualifiedName,
-                                    JavaFileObject.Kind.CLASS);
+                                    StandardLocation.CLASS_PATH, qualifiedName, JavaFileObject.Kind.CLASS);
             long sourceModified = sourceFile == null ? 0 : sourceFile.getLastModified(),
                     outputModified = outputFile == null ? 0 : outputFile.getLastModified();
-            boolean hidden =
-                    outputModified >= sourceModified || hasUpToDateSignature(qualifiedName);
+            boolean hidden = outputModified >= sourceModified || hasUpToDateSignature(qualifiedName);
 
             // TODO remove
             // if (!hidden) {
@@ -255,17 +230,13 @@ class IncrementalFileManager extends ForwardingJavaFileManager<JavaFileManager> 
             //     LOG.warning("\t" + classSignature(qualifiedName));
             // }
 
-            if (hidden
-                    && sourceFile != null
-                    && outputFile != null
-                    && !warnedHidden.contains(sourceFile.toUri())) {
+            if (hidden && sourceFile != null && outputFile != null && !warnedHidden.contains(sourceFile.toUri())) {
                 LOG.warning("Hiding " + sourceFile.toUri() + " in favor of " + outputFile.toUri());
 
                 warnedHidden.add(sourceFile.toUri());
             }
 
-            if (!hidden && warnedHidden.contains(sourceFile.toUri()))
-                warnedHidden.remove(sourceFile.toUri());
+            if (!hidden && warnedHidden.contains(sourceFile.toUri())) warnedHidden.remove(sourceFile.toUri());
 
             return hidden;
         } catch (IOException e) {
@@ -279,9 +250,7 @@ class IncrementalFileManager extends ForwardingJavaFileManager<JavaFileManager> 
 
     /** Signatures of all non-private methods and fields in a .java file */
     Optional<PubApi> sourceSignature(String qualifiedName) {
-        JavacTask task =
-                javac.getTask(
-                        null, fileManager, __ -> {}, ImmutableList.of(), null, ImmutableList.of());
+        JavacTask task = javac.getTask(null, fileManager, __ -> {}, ImmutableList.of(), null, ImmutableList.of());
         TypeElement element = task.getElements().getTypeElement(qualifiedName);
 
         return signature(element);
@@ -290,13 +259,7 @@ class IncrementalFileManager extends ForwardingJavaFileManager<JavaFileManager> 
     /** Signatures of all non-private methods and fields in a .class file */
     Optional<PubApi> classSignature(String qualifiedName) {
         JavacTask task =
-                javac.getTask(
-                        null,
-                        classOnlyFileManager,
-                        __ -> {},
-                        ImmutableList.of(),
-                        null,
-                        ImmutableList.of());
+                javac.getTask(null, classOnlyFileManager, __ -> {}, ImmutableList.of(), null, ImmutableList.of());
         TypeElement element = task.getElements().getTypeElement(qualifiedName);
 
         return signature(element);

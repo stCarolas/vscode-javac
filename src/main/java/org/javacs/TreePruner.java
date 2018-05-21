@@ -129,12 +129,8 @@ class TreePruner {
         new Pruner().scan(source, null);
     }
 
-    /**
-     * Insert ';' after the users cursor so we recover from parse errors in a helpful way when doing
-     * autocomplete.
-     */
-    static JavaFileObject putSemicolonAfterCursor(
-            JavaFileObject file, int cursorLine, int cursorCharacter) {
+    /** Insert ';' after the users cursor so we recover from parse errors in a helpful way when doing autocomplete. */
+    static JavaFileObject putSemicolonAfterCursor(JavaFileObject file, int cursorLine, int cursorCharacter) {
         try (Reader reader = file.openReader(true)) {
             StringBuilder acc = new StringBuilder();
             int line = 1, character = 1;
@@ -145,12 +141,7 @@ class TreePruner {
 
                 if (next == -1)
                     throw new RuntimeException(
-                            "End of file "
-                                    + file
-                                    + " before cursor "
-                                    + cursorLine
-                                    + ":"
-                                    + cursorCharacter);
+                            "End of file " + file + " before cursor " + cursorLine + ":" + cursorCharacter);
                 else if (next == '\n') {
                     line++;
                     character = 1;

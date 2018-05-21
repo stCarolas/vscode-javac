@@ -25,48 +25,29 @@ public class TreePrunerTest {
                         err -> LOG.warning(err.getMessage(null)),
                         Collections.emptyList(),
                         Collections.emptyList(),
-                        Collections.singleton(
-                                new StringFileObject(source, URI.create("FakePath.java"))));
+                        Collections.singleton(new StringFileObject(source, URI.create("FakePath.java"))));
     }
 
     @Test
     public void putSemicolonAfterCursor() throws IOException {
-        String source =
-                "public class Example {\n" + "  void main() {\n" + "    this.m\n" + "  }\n" + "}\n";
+        String source = "public class Example {\n" + "  void main() {\n" + "    this.m\n" + "  }\n" + "}\n";
         JavaFileObject after =
-                TreePruner.putSemicolonAfterCursor(
-                        new StringFileObject(source, URI.create("Example.java")), 3, 11);
+                TreePruner.putSemicolonAfterCursor(new StringFileObject(source, URI.create("Example.java")), 3, 11);
 
         assertThat(
                 after.getCharContent(true).toString(),
-                equalTo(
-                        "public class Example {\n"
-                                + "  void main() {\n"
-                                + "    this.m;\n"
-                                + "  }\n"
-                                + "}\n"));
+                equalTo("public class Example {\n" + "  void main() {\n" + "    this.m;\n" + "  }\n" + "}\n"));
     }
 
     @Test
     public void putSemicolonAtEndOfLine() throws IOException {
-        String source =
-                "public class Example {\n"
-                        + "  void main() {\n"
-                        + "    this.main\n"
-                        + "  }\n"
-                        + "}\n";
+        String source = "public class Example {\n" + "  void main() {\n" + "    this.main\n" + "  }\n" + "}\n";
         JavaFileObject after =
-                TreePruner.putSemicolonAfterCursor(
-                        new StringFileObject(source, URI.create("Example.java")), 3, 11);
+                TreePruner.putSemicolonAfterCursor(new StringFileObject(source, URI.create("Example.java")), 3, 11);
 
         assertThat(
                 after.getCharContent(true).toString(),
-                equalTo(
-                        "public class Example {\n"
-                                + "  void main() {\n"
-                                + "    this.main;\n"
-                                + "  }\n"
-                                + "}\n"));
+                equalTo("public class Example {\n" + "  void main() {\n" + "    this.main;\n" + "  }\n" + "}\n"));
     }
 
     @Test

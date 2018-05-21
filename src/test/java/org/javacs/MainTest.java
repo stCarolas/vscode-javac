@@ -10,8 +10,7 @@ import org.junit.Test;
 public class MainTest {
     @Test
     public void checkJavacClassLoader()
-            throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException,
-                    InvocationTargetException {
+            throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
         assertThat(Main.checkJavacClassLoader(), not(instanceOf(ChildFirstClassLoader.class)));
 
         ClassLoader langTools = LangTools.createLangToolsClassLoader();

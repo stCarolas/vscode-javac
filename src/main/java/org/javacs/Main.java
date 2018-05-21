@@ -10,10 +10,8 @@ import com.fasterxml.jackson.datatype.jsr310.JSR310Module;
 import com.sun.tools.javac.api.JavacTool;
 import java.io.IOException;
 import java.lang.reflect.Method;
-import java.net.Socket;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Objects;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -46,8 +44,7 @@ public class Main {
                 Path.class,
                 new JsonSerializer<Path>() {
                     @Override
-                    public void serialize(
-                            Path path, JsonGenerator gen, SerializerProvider serializerProvider)
+                    public void serialize(Path path, JsonGenerator gen, SerializerProvider serializerProvider)
                             throws IOException, JsonProcessingException {
                         gen.writeString(path.toString());
                     }
@@ -57,8 +54,7 @@ public class Main {
                 Path.class,
                 new JsonDeserializer<Path>() {
                     @Override
-                    public Path deserialize(
-                            JsonParser parse, DeserializationContext deserializationContext)
+                    public Path deserialize(JsonParser parse, DeserializationContext deserializationContext)
                             throws IOException, JsonProcessingException {
                         return Paths.get(parse.getText());
                     }
@@ -89,7 +85,7 @@ public class Main {
         try {
             JavaLanguageServer server = new JavaLanguageServer();
             Launcher<LanguageClient> launcher = LSPLauncher.createServerLauncher(server, System.in, System.out);
-    
+
             server.installClient(launcher.getRemoteProxy());
             launcher.startListening();
             LOG.info(String.format("java.version is %s", System.getProperty("java.version")));

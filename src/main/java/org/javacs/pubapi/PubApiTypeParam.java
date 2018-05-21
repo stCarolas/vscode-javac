@@ -55,14 +55,12 @@ public class PubApiTypeParam implements Serializable {
 
     public String asString() {
         if (bounds.isEmpty()) return identifier;
-        String boundsStr =
-                bounds.stream().map(TypeDesc::encodeAsString).collect(Collectors.joining(" & "));
+        String boundsStr = bounds.stream().map(TypeDesc::encodeAsString).collect(Collectors.joining(" & "));
         return identifier + " extends " + boundsStr;
     }
 
     @Override
     public String toString() {
-        return String.format(
-                "%s[id: %s, bounds: %s]", getClass().getSimpleName(), identifier, bounds);
+        return String.format("%s[id: %s, bounds: %s]", getClass().getSimpleName(), identifier, bounds);
     }
 }

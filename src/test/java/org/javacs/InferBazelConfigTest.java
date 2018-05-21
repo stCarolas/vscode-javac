@@ -24,15 +24,10 @@ public class InferBazelConfigTest {
                     Paths.get("nowhere"),
                     Paths.get("nowhere"));
     private Path bazelBin = bazelWorkspace.resolve("bazel-bin"),
-            bazelBinTarget =
-                    bazelTemp
-                            .resolve("xyz/execroot/test/bazel-out/local-fastbuild/bin")
-                            .toAbsolutePath(),
+            bazelBinTarget = bazelTemp.resolve("xyz/execroot/test/bazel-out/local-fastbuild/bin").toAbsolutePath(),
             bazelGenfiles = bazelWorkspace.resolve("bazel-genfiles"),
             bazelGenfilesTarget =
-                    bazelTemp
-                            .resolve("xyz/execroot/test/bazel-out/local-fastbuild/genfiles")
-                            .toAbsolutePath();
+                    bazelTemp.resolve("xyz/execroot/test/bazel-out/local-fastbuild/genfiles").toAbsolutePath();
 
     @Before
     public void createBazelBinLink() throws IOException {
@@ -60,9 +55,7 @@ public class InferBazelConfigTest {
 
     @Test
     public void bazelWorkspaceClassPath() {
-        assertThat(
-                bazel.workspaceClassPath(),
-                hasItem(bazelBinTarget.resolve("module/_javac/main/libmain_classes")));
+        assertThat(bazel.workspaceClassPath(), hasItem(bazelBinTarget.resolve("module/_javac/main/libmain_classes")));
     }
 
     @Test

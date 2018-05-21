@@ -17,8 +17,7 @@ public class References {
     }
 
     public static Optional<Location> gotoDefinition(FocusedResult compiled, FindSymbols find) {
-        return compiled.cursor.flatMap(
-                cursor -> new References(compiled.task, find).doGotoDefinition(cursor));
+        return compiled.cursor.flatMap(cursor -> new References(compiled.task, find).doGotoDefinition(cursor));
     }
 
     private final JavacTask task;

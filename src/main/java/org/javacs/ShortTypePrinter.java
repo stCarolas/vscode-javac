@@ -17,18 +17,12 @@ class ShortTypePrinter extends AbstractTypeVisitor8<String, Void> {
 
     @Override
     public String visitIntersection(IntersectionType t, Void aVoid) {
-        return t.getBounds()
-                .stream()
-                .map(ShortTypePrinter::print)
-                .collect(Collectors.joining(" & "));
+        return t.getBounds().stream().map(ShortTypePrinter::print).collect(Collectors.joining(" & "));
     }
 
     @Override
     public String visitUnion(UnionType t, Void aVoid) {
-        return t.getAlternatives()
-                .stream()
-                .map(ShortTypePrinter::print)
-                .collect(Collectors.joining(" | "));
+        return t.getAlternatives().stream().map(ShortTypePrinter::print).collect(Collectors.joining(" | "));
     }
 
     @Override
@@ -51,8 +45,7 @@ class ShortTypePrinter extends AbstractTypeVisitor8<String, Void> {
         String result = "";
 
         // If type is an inner class, add outer class name
-        if (t.asElement().getKind() == ElementKind.CLASS
-                && t.getEnclosingType().getKind() == TypeKind.DECLARED) {
+        if (t.asElement().getKind() == ElementKind.CLASS && t.getEnclosingType().getKind() == TypeKind.DECLARED) {
 
             result += print(t.getEnclosingType()) + ".";
         }
@@ -61,10 +54,7 @@ class ShortTypePrinter extends AbstractTypeVisitor8<String, Void> {
 
         if (!t.getTypeArguments().isEmpty()) {
             String params =
-                    t.getTypeArguments()
-                            .stream()
-                            .map(ShortTypePrinter::print)
-                            .collect(Collectors.joining(", "));
+                    t.getTypeArguments().stream().map(ShortTypePrinter::print).collect(Collectors.joining(", "));
 
             result += "<" + params + ">";
         }

@@ -11,8 +11,7 @@ import org.junit.Test;
 
 public class SymbolIndexTest {
     private Path workspaceRoot = Paths.get("src/test/test-project/workspace");
-    private SymbolIndex index =
-            new SymbolIndex(workspaceRoot, () -> Collections.emptySet(), __ -> Optional.empty());
+    private SymbolIndex index = new SymbolIndex(workspaceRoot, () -> Collections.emptySet(), __ -> Optional.empty());
 
     @Test
     public void workspaceSourcePath() {

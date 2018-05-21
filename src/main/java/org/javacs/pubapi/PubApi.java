@@ -59,10 +59,7 @@ public class PubApi implements Serializable {
 
     public PubApi() {}
 
-    public PubApi(
-            Collection<PubType> types,
-            Collection<PubVar> variables,
-            Collection<PubMethod> methods) {
+    public PubApi(Collection<PubType> types, Collection<PubVar> variables, Collection<PubMethod> methods) {
         types.forEach(this::addPubType);
         variables.forEach(this::addPubVar);
         methods.forEach(this::addPubMethod);
@@ -118,8 +115,7 @@ public class PubApi implements Serializable {
                 .forEach(
                         type -> {
                             lines.add(typeLine(type));
-                            for (String subline : type.pubApi.asListOfStrings())
-                                lines.add("  " + subline);
+                            for (String subline : type.pubApi.asListOfStrings()) lines.add("  " + subline);
                         });
 
         // Variables
@@ -136,16 +132,12 @@ public class PubApi implements Serializable {
         if (obj == null) return false;
         if (getClass() != obj.getClass()) return false;
         PubApi other = (PubApi) obj;
-        return types.equals(other.types)
-                && variables.equals(other.variables)
-                && methods.equals(other.methods);
+        return types.equals(other.types) && variables.equals(other.variables) && methods.equals(other.methods);
     }
 
     @Override
     public int hashCode() {
-        return types.keySet().hashCode()
-                ^ variables.keySet().hashCode()
-                ^ methods.keySet().hashCode();
+        return types.keySet().hashCode() ^ variables.keySet().hashCode() ^ methods.keySet().hashCode();
     }
 
     private static String commaSeparated(List<TypeDesc> typeDescs) {
@@ -182,10 +174,7 @@ public class PubApi implements Serializable {
     private static final Pattern METHOD_PATTERN =
             Pattern.compile("(?<ret>.+?) (?<name>\\S+)\\((?<params>.*)\\)( throws (?<throws>.*))?");
     private static final Pattern VAR_PATTERN =
-            Pattern.compile(
-                    "VAR (?<modifiers>("
-                            + MODIFIERS
-                            + " )*)(?<type>.+?) (?<id>\\S+)( = (?<val>.*))?");
+            Pattern.compile("VAR (?<modifiers>(" + MODIFIERS + " )*)(?<type>.+?) (?<id>\\S+)( = (?<val>.*))?");
     private static final Pattern TYPE_PATTERN =
             Pattern.compile("TYPE (?<modifiers>(" + MODIFIERS + " )*)(?<fullyQualified>\\S+)");
 
@@ -247,10 +236,7 @@ public class PubApi implements Serializable {
             Matcher tm = TYPE_PATTERN.matcher(l);
             if (tm.matches()) {
                 addPubType(
-                        new PubType(
-                                parseModifiers(tm.group("modifiers")),
-                                tm.group("fullyQualified"),
-                                new PubApi()));
+                        new PubType(parseModifiers(tm.group("modifiers")), tm.group("fullyQualified"), new PubApi()));
                 return;
             }
 
@@ -393,14 +379,7 @@ public class PubApi implements Serializable {
                                     + var.modifiers);
                 }
                 if (!var.type.equals(prevVar.type)) {
-                    diffs.add(
-                            "Type of "
-                                    + scopePrefix
-                                    + varKey
-                                    + " changed from "
-                                    + prevVar.type
-                                    + " to "
-                                    + var.type);
+                    diffs.add("Type of " + scopePrefix + varKey + " changed from " + prevVar.type + " to " + var.type);
                 }
                 if (!var.getConstValue().equals(prevVar.getConstValue())) {
                     diffs.add(

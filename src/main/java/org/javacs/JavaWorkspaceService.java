@@ -46,19 +46,16 @@ class JavaWorkspaceService implements WorkspaceService {
                 FocusedResult compiled =
                         server.configured()
                                 .compiler
-                                .compileFocused(
-                                        fileUri, textDocuments.activeContent(fileUri), 1, 1, false);
+                                .compileFocused(fileUri, textDocuments.activeContent(fileUri), 1, 1, false);
 
                 if (compiled.compilationUnit.getSourceFile().toUri().equals(fileUri)) {
                     List<TextEdit> edits =
-                            new RefactorFile(compiled.task, compiled.compilationUnit)
-                                    .addImport(packageName, className);
+                            new RefactorFile(compiled.task, compiled.compilationUnit).addImport(packageName, className);
 
                     client.join()
                             .applyEdit(
                                     new ApplyWorkspaceEditParams(
-                                            new WorkspaceEdit(
-                                                    Collections.singletonMap(fileString, edits))));
+                                            new WorkspaceEdit(Collections.singletonMap(fileString, edits))));
                 }
 
                 break;
@@ -70,14 +67,9 @@ class JavaWorkspaceService implements WorkspaceService {
     }
 
     @Override
-    public CompletableFuture<List<? extends SymbolInformation>> symbol(
-            WorkspaceSymbolParams params) {
+    public CompletableFuture<List<? extends SymbolInformation>> symbol(WorkspaceSymbolParams params) {
         List<SymbolInformation> infos =
-                server.configured()
-                        .index
-                        .search(params.getQuery())
-                        .limit(server.maxItems)
-                        .collect(Collectors.toList());
+                server.configured().index.search(params.getQuery()).limit(server.maxItems).collect(Collectors.toList());
 
         return CompletableFuture.completedFuture(infos);
     }

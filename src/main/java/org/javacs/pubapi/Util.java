@@ -43,9 +43,8 @@ import java.util.stream.Stream;
 /**
  * Utilities.
  *
- * <p><b>This is NOT part of any supported API. If you write code that depends on this, you do so at
- * your own risk. This code and its internal interfaces are subject to change or deletion without
- * notice.</b>
+ * <p><b>This is NOT part of any supported API. If you write code that depends on this, you do so at your own risk. This
+ * code and its internal interfaces are subject to change or deletion without notice.</b>
  */
 public class Util {
 
@@ -69,8 +68,7 @@ public class Util {
 
     public static String justPackageName(String pkgName) {
         int c = pkgName.indexOf(":");
-        if (c == -1)
-            throw new IllegalArgumentException("Expected ':' in package name (" + pkgName + ")");
+        if (c == -1) throw new IllegalArgumentException("Expected ':' in package name (" + pkgName + ")");
         return pkgName.substring(c + 1);
     }
 
@@ -113,8 +111,7 @@ public class Util {
     /**
      * Extract the package name from a fully qualified class name.
      *
-     * <p>Example: Given "pkg.subpkg.A" this method returns ":pkg.subpkg". Given "C" this method
-     * returns ":".
+     * <p>Example: Given "pkg.subpkg.A" this method returns ":pkg.subpkg". Given "C" this method returns ":".
      *
      * @returns package name of the given class name
      */
@@ -125,10 +122,9 @@ public class Util {
     }
 
     /**
-     * Clean out unwanted sub options supplied inside a primary option. For example to only had
-     * portfile remaining from: settings="--server:id=foo,portfile=bar" do settings =
-     * cleanOptions("--server:",Util.set("-portfile"),settings); now settings equals
-     * "--server:portfile=bar"
+     * Clean out unwanted sub options supplied inside a primary option. For example to only had portfile remaining from:
+     * settings="--server:id=foo,portfile=bar" do settings = cleanOptions("--server:",Util.set("-portfile"),settings);
+     * now settings equals "--server:portfile=bar"
      *
      * @param allowedSubOptions A set of the allowed sub options, id portfile etc.
      * @param s The option settings string.
@@ -162,8 +158,7 @@ public class Util {
      * Normalize windows drive letter paths to upper case to enable string comparison.
      *
      * @param file File name to normalize
-     * @return The normalized string if file has a drive letter at the beginning, otherwise the
-     *     original string.
+     * @return The normalized string if file has a drive letter at the beginning, otherwise the original string.
      */
     public static String normalizeDriveLetter(String file) {
         if (file.length() > 2 && file.charAt(1) == ':') {
@@ -215,8 +210,7 @@ public class Util {
         return intersection;
     }
 
-    public static <I, T> Map<I, T> indexBy(
-            Collection<? extends T> c, Function<? super T, ? extends I> indexFunction) {
+    public static <I, T> Map<I, T> indexBy(Collection<? extends T> c, Function<? super T, ? extends I> indexFunction) {
         return c.stream().collect(Collectors.<T, I, T>toMap(indexFunction, o -> o));
     }
 
@@ -227,8 +221,6 @@ public class Util {
     }
 
     public static Stream<String> getLines(String str) {
-        return str.isEmpty()
-                ? Stream.empty()
-                : Stream.of(str.split(Pattern.quote(System.lineSeparator())));
+        return str.isEmpty() ? Stream.empty() : Stream.of(str.split(Pattern.quote(System.lineSeparator())));
     }
 }

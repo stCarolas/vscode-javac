@@ -65,18 +65,13 @@ public class PubMethod implements Serializable {
 
         // <A extends String, Serializable, B extends List>
         if (typeParams.size() > 0) {
-            sb.append(
-                    typeParams
-                            .stream()
-                            .map(PubApiTypeParam::asString)
-                            .collect(Collectors.joining(",", "<", "> ")));
+            sb.append(typeParams.stream().map(PubApiTypeParam::asString).collect(Collectors.joining(",", "<", "> ")));
         }
         sb.append(TypeDesc.encodeAsString(returnType));
         sb.append(" ");
         sb.append(identifier);
         sb.append("(");
-        sb.append(
-                paramTypes.stream().map(TypeDesc::encodeAsString).collect(Collectors.joining(",")));
+        sb.append(paramTypes.stream().map(TypeDesc::encodeAsString).collect(Collectors.joining(",")));
         sb.append(")");
         return sb.toString();
     }
@@ -106,12 +101,6 @@ public class PubMethod implements Serializable {
     public String toString() {
         return String.format(
                 "%s[modifiers: %s, typeParams: %s, retType: %s, identifier: %s, params: %s, throws: %s]",
-                getClass().getSimpleName(),
-                modifiers,
-                typeParams,
-                returnType,
-                identifier,
-                paramTypes,
-                throwDecls);
+                getClass().getSimpleName(), modifiers, typeParams, returnType, identifier, paramTypes, throwDecls);
     }
 }

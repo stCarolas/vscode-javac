@@ -42,14 +42,9 @@ public class JavaPresentationCompiler {
         LOG.warning(diags.getMessage(null));
     }
 
-    /**
-     * Combine source path or class path entries using the system separator, for example ':' in unix
-     */
+    /** Combine source path or class path entries using the system separator, for example ':' in unix */
     private static String joinPath(Collection<Path> classOrSourcePath) {
-        return classOrSourcePath
-                .stream()
-                .map(p -> p.toString())
-                .collect(Collectors.joining(File.pathSeparator));
+        return classOrSourcePath.stream().map(p -> p.toString()).collect(Collectors.joining(File.pathSeparator));
     }
 
     private static List<String> options(Set<Path> sourcePath, Set<Path> classPath) {
@@ -147,8 +142,7 @@ public class JavaPresentationCompiler {
             Tree found = null;
 
             boolean containsCursor(Tree tree) {
-                long start = pos.getStartPosition(cache.root, tree),
-                        end = pos.getEndPosition(cache.root, tree);
+                long start = pos.getStartPosition(cache.root, tree), end = pos.getEndPosition(cache.root, tree);
                 // If element has no position, give up
                 if (start == -1 || end == -1) return false;
                 // Check if `tree` contains line:column
@@ -174,9 +168,7 @@ public class JavaPresentationCompiler {
                         .orElseThrow(
                                 () ->
                                         new RuntimeException(
-                                                String.format(
-                                                        "No TreePath to %s %d:%d",
-                                                        file, line, character)));
+                                                String.format("No TreePath to %s %d:%d", file, line, character)));
 
         return trees.getPath(cache.root, found);
     }
@@ -332,9 +324,10 @@ public class JavaPresentationCompiler {
     }
 
     private List<Path> potentialReferences(Element to) {
-        Predicate<Path> test = file -> {
-            return TODO();
-        };
+        Predicate<Path> test =
+                file -> {
+                    return TODO();
+                };
         return javaSources().filter(test).collect(Collectors.toList());
     }
 

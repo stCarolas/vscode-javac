@@ -41,9 +41,8 @@ import javax.lang.model.util.ElementScanner8;
 /**
  * Utility class that constructs a textual representation of the public api of a class.
  *
- * <p><b>This is NOT part of any supported API. If you write code that depends on this, you do so at
- * your own risk. This code and its internal interfaces are subject to change or deletion without
- * notice.</b>
+ * <p><b>This is NOT part of any supported API. If you write code that depends on this, you do so at your own risk. This
+ * code and its internal interfaces are subject to change or deletion without notice.</b>
  */
 public class PubapiVisitor extends ElementScanner8<Void, Void> {
 
@@ -65,7 +64,7 @@ public class PubapiVisitor extends ElementScanner8<Void, Void> {
                         new PubType(
                                 e.getModifiers(),
                                 name,
-                                //e.getQualifiedName().toString(),
+                                // e.getQualifiedName().toString(),
                                 collectedApi);
                 prevApi.types.put(t.fqName, t);
             }
@@ -104,12 +103,7 @@ public class PubapiVisitor extends ElementScanner8<Void, Void> {
                 }
             }
 
-            PubVar v =
-                    new PubVar(
-                            e.getModifiers(),
-                            TypeDesc.fromType(e.asType()),
-                            e.toString(),
-                            constValStr);
+            PubVar v = new PubVar(e.getModifiers(), TypeDesc.fromType(e.asType()), e.toString(), constValStr);
             collectedApi.variables.put(v.identifier, v);
         }
 
@@ -139,10 +133,7 @@ public class PubapiVisitor extends ElementScanner8<Void, Void> {
 
     private List<PubApiTypeParam> getTypeParameters(List<? extends TypeParameterElement> elements) {
         return elements.stream()
-                .map(
-                        e ->
-                                new PubApiTypeParam(
-                                        e.getSimpleName().toString(), getTypeDescs(e.getBounds())))
+                .map(e -> new PubApiTypeParam(e.getSimpleName().toString(), getTypeDescs(e.getBounds())))
                 .collect(Collectors.toList());
     }
 

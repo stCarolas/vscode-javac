@@ -33,41 +33,30 @@ public class ClassPathIndexTest {
 
     @Test
     public void java8Platform() throws IOException {
-        String javaHome =
-                Paths.get("./src/test/test-platforms/jdk8-home").toAbsolutePath().toString();
+        String javaHome = Paths.get("./src/test/test-platforms/jdk8-home").toAbsolutePath().toString();
         URL[] resources = ClassPathIndex.java8Platform(javaHome);
-        assertThat(
-                "found example.jar",
-                resources,
-                hasItemInArray(hasToString(containsString("rt.jar"))));
+        assertThat("found example.jar", resources, hasItemInArray(hasToString(containsString("rt.jar"))));
         ClassPath classPath = ClassPath.from(new URLClassLoader(resources, null));
-        assertThat(
-                classPath.getTopLevelClasses(),
-                hasItem(hasProperty("simpleName", equalTo("HelloWorld"))));
+        assertThat(classPath.getTopLevelClasses(), hasItem(hasProperty("simpleName", equalTo("HelloWorld"))));
     }
 
     @Test
     public void java9Platform() throws IOException {
-        String javaHome =
-                Paths.get("./src/test/test-platforms/jdk9-home").toAbsolutePath().toString();
+        String javaHome = Paths.get("./src/test/test-platforms/jdk9-home").toAbsolutePath().toString();
         URL[] resources = ClassPathIndex.java9Platform(javaHome);
         assertThat(
                 "found java.compiler.jmod",
                 resources,
                 hasItemInArray(hasToString(containsString("java.compiler.jmod"))));
         ClassPath classPath = ClassPath.from(new URLClassLoader(resources, null));
-        assertThat(
-                classPath.getTopLevelClasses(),
-                hasItem(hasProperty("simpleName", equalTo("JavaCompiler"))));
+        assertThat(classPath.getTopLevelClasses(), hasItem(hasProperty("simpleName", equalTo("JavaCompiler"))));
     }
 
     @Test
     public void topLevelClasses() {
         ClassPathIndex index = new ClassPathIndex(Collections.emptySet());
         Optional<ClassPath.ClassInfo> arrayList =
-                index.topLevelClasses()
-                        .filter(c -> c.getName().equals("java.util.ArrayList"))
-                        .findFirst();
+                index.topLevelClasses().filter(c -> c.getName().equals("java.util.ArrayList")).findFirst();
         assertTrue("java.util.ArrayList is on the classpath", arrayList.isPresent());
     }
 }

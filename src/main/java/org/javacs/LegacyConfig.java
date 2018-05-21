@@ -35,23 +35,17 @@ class LegacyConfig {
                 json -> {
                     Set<Path> classPath = readClassPath(dir, json.classPath, json.classPathFile),
                             docPath = readClassPath(dir, json.docPath, json.docPathFile),
-                            sourcePath =
-                                    json.sourcePath
-                                            .stream()
-                                            .map(dir::resolve)
-                                            .collect(Collectors.toSet());
+                            sourcePath = json.sourcePath.stream().map(dir::resolve).collect(Collectors.toSet());
                     Path outputDirectory = dir.resolve(json.outputDirectory);
 
-                    return new JavacConfig(
-                            classPath, Collections.singleton(outputDirectory), docPath);
+                    return new JavacConfig(classPath, Collections.singleton(outputDirectory), docPath);
                 };
         if (Files.exists(dir.resolve("javaconfig.json"))) {
             return readJavaConfigJson(dir.resolve("javaconfig.json")).map(parseJavaConfigJson);
         } else return Optional.empty();
     }
 
-    private Set<Path> readClassPath(
-            Path dir, Set<Path> jsonClassPath, Optional<Path> jsonClassPathFile) {
+    private Set<Path> readClassPath(Path dir, Set<Path> jsonClassPath, Optional<Path> jsonClassPathFile) {
         Set<Path> classPath = new HashSet<>();
 
         jsonClassPathFile.ifPresent(
@@ -105,10 +99,7 @@ class LegacyConfig {
 
             LOG.info(String.format("Emit effective pom for %s to %s", pomXml, effectivePom));
 
-            String cmd =
-                    String.format(
-                            "%s help:effective-pom -Doutput=%s",
-                            InferConfig.getMvnCommand(), effectivePom);
+            String cmd = String.format("%s help:effective-pom -Doutput=%s", InferConfig.getMvnCommand(), effectivePom);
             File workingDirectory = pomXml.toAbsolutePath().getParent().toFile();
             int result = Runtime.getRuntime().exec(cmd, null, workingDirectory).waitFor();
 
@@ -122,19 +113,17 @@ class LegacyConfig {
 
     // TODO For sourceJars = true:
     // use mvn dependency:list to list the dependencies quickly,
-    // then fetch each one individually using mvn dependency:build-classpath -DincludeGroupIds=? -DincludeArtifactIds=? ...
+    // then fetch each one individually using mvn dependency:build-classpath -DincludeGroupIds=? -DincludeArtifactIds=?
+    // ...
     private static Set<Path> buildClassPath(Path pomXml, boolean testScope, boolean sourceJars) {
         try {
             Objects.requireNonNull(pomXml, "pom.xml path is null");
 
             // Tell maven to output classpath to a temporary file
             // TODO if pom.xml already specifies outputFile, use that location
-            Path classPathTxt =
-                    Files.createTempFile(sourceJars ? "sourcepath" : "classpath", ".txt");
+            Path classPathTxt = Files.createTempFile(sourceJars ? "sourcepath" : "classpath", ".txt");
 
-            LOG.info(
-                    String.format(
-                            "Emit %s to %s", sourceJars ? "docPath" : "classpath", classPathTxt));
+            LOG.info(String.format("Emit %s to %s", sourceJars ? "docPath" : "classpath", classPathTxt));
 
             String cmd =
                     String.format(
@@ -160,15 +149,13 @@ class LegacyConfig {
 
     private static Set<Path> sourceDirectories(Path pomXml, boolean testScope) {
         return testScope
-                ? ImmutableSet.of(
-                        onlySourceDirectories(pomXml, true), onlySourceDirectories(pomXml, false))
+                ? ImmutableSet.of(onlySourceDirectories(pomXml, true), onlySourceDirectories(pomXml, false))
                 : ImmutableSet.of(onlySourceDirectories(pomXml, false));
     }
 
     private static Path onlySourceDirectories(Path pomXml, boolean testScope) {
         String defaultSourceDir = testScope ? "src/test/java" : "src/main/java";
-        String xPath =
-                testScope ? "/project/build/testSourceDirectory" : "/project/build/sourceDirectory";
+        String xPath = testScope ? "/project/build/testSourceDirectory" : "/project/build/sourceDirectory";
         Document doc = parsePomXml(pomXml);
 
         try {
@@ -201,8 +188,7 @@ class LegacyConfig {
         try {
             JsonNode json = JSON.readValue(configFile.toFile(), JsonNode.class);
 
-            if (json.isArray())
-                return JSON.convertValue(json, new TypeReference<List<JavaConfigJson>>() {});
+            if (json.isArray()) return JSON.convertValue(json, new TypeReference<List<JavaConfigJson>>() {});
             else {
                 JavaConfigJson one = JSON.convertValue(json, JavaConfigJson.class);
 
@@ -221,15 +207,10 @@ class LegacyConfig {
     private static Set<Path> readClassPathFile(Path classPathFilePath) {
         try {
             InputStream in = Files.newInputStream(classPathFilePath);
-            String text =
-                    new BufferedReader(new InputStreamReader(in))
-                            .lines()
-                            .collect(Collectors.joining());
+            String text = new BufferedReader(new InputStreamReader(in)).lines().collect(Collectors.joining());
             Path dir = classPathFilePath.getParent();
 
-            return Arrays.stream(text.split(File.pathSeparator))
-                    .map(dir::resolve)
-                    .collect(Collectors.toSet());
+            return Arrays.stream(text.split(File.pathSeparator)).map(dir::resolve).collect(Collectors.toSet());
         } catch (IOException e) {
             MessageParams message = new MessageParams();
 

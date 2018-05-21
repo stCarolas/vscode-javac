@@ -22,10 +22,7 @@ class FindSymbols {
     private final JavacHolder compiler;
     private final Function<URI, Optional<String>> activeContent;
 
-    FindSymbols(
-            SymbolIndex index,
-            JavacHolder compiler,
-            Function<URI, Optional<String>> activeContent) {
+    FindSymbols(SymbolIndex index, JavacHolder compiler, Function<URI, Optional<String>> activeContent) {
         this.index = index;
         this.compiler = compiler;
         this.activeContent = activeContent;
@@ -34,9 +31,9 @@ class FindSymbols {
     /**
      * Find a symbol in its file.
      *
-     * <p>It's possible that `symbol` comes from a .class file where the corresponding .java file
-     * was not visited during incremental compilation. In order to be sure we have access to the
-     * source positions, we will recompile the .java file where `symbol` was declared.
+     * <p>It's possible that `symbol` comes from a .class file where the corresponding .java file was not visited during
+     * incremental compilation. In order to be sure we have access to the source positions, we will recompile the .java
+     * file where `symbol` was declared.
      */
     Optional<Location> find(Element symbol) {
         index.updateOpenFiles();
@@ -52,8 +49,7 @@ class FindSymbols {
     }
 
     private void visitElements(URI source, BiConsumer<JavacTask, Element> forEach) {
-        Map<URI, Optional<String>> todo =
-                Collections.singletonMap(source, activeContent.apply(source));
+        Map<URI, Optional<String>> todo = Collections.singletonMap(source, activeContent.apply(source));
 
         compiler.compileBatch(
                 todo,
@@ -108,8 +104,7 @@ class FindSymbols {
 
     private List<Location> findReferences(Collection<URI> files, Element target) {
         List<Location> found = new ArrayList<>();
-        Map<URI, Optional<String>> todo =
-                files.stream().collect(Collectors.toMap(uri -> uri, activeContent));
+        Map<URI, Optional<String>> todo = files.stream().collect(Collectors.toMap(uri -> uri, activeContent));
 
         compiler.compileBatch(
                 todo,
@@ -148,8 +143,7 @@ class FindSymbols {
                         private void addReference() {
                             Element symbol = trees.getElement(getCurrentPath());
 
-                            if (sameSymbol(target, symbol))
-                                findPath(getCurrentPath(), trees).ifPresent(found::add);
+                            if (sameSymbol(target, symbol)) findPath(getCurrentPath(), trees).ifPresent(found::add);
                         }
                     }.scan(compilationUnit, null);
                 });
@@ -207,8 +201,7 @@ class FindSymbols {
         if (s != null) {
             createQualifiedName(s.getEnclosingElement(), acc);
 
-            if (s instanceof PackageElement)
-                acc.add(((PackageElement) s).getQualifiedName().toString());
+            if (s instanceof PackageElement) acc.add(((PackageElement) s).getQualifiedName().toString());
             else if (s.getSimpleName().length() != 0) acc.add(s.getSimpleName().toString());
         }
     }

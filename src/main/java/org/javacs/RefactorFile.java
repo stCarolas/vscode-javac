@@ -148,13 +148,11 @@ class RefactorFile {
         }
     }
 
-    private static boolean alreadyImported(
-            CompilationUnitTree source, String packageName, String className) {
+    private static boolean alreadyImported(CompilationUnitTree source, String packageName, String className) {
         return source.getImports().stream().anyMatch(i -> importEquals(i, packageName, className));
     }
 
-    private static String organizeImports(
-            CompilationUnitTree source, String packageName, String className) {
+    private static String organizeImports(CompilationUnitTree source, String packageName, String className) {
         Context context = new Context();
         JavacFileManager fileManager = new JavacFileManager(context, true, null);
         Names names = Names.instance(context);
@@ -163,9 +161,7 @@ class RefactorFile {
 
         imports.add(
                 factory.Import(
-                        factory.Select(
-                                factory.Ident(names.fromString(packageName)),
-                                names.fromString(className)),
+                        factory.Select(factory.Ident(names.fromString(packageName)), names.fromString(className)),
                         false));
 
         JCTree.JCCompilationUnit after =

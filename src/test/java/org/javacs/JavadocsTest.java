@@ -46,8 +46,7 @@ public class JavadocsTest {
     public void findParameterizedDoc() {
         assertTrue(
                 "Found method",
-                docs.methodDoc("org.javacs.docs.TrickyDocstring#parameterized(java.lang.Object)")
-                        .isPresent());
+                docs.methodDoc("org.javacs.docs.TrickyDocstring#parameterized(java.lang.Object)").isPresent());
     }
 
     @Test

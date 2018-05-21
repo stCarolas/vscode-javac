@@ -20,12 +20,12 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * Index the classpath *without* using the java compiler API. The classpath can contain problematic
- * types, for example references to classes that *aren't* present. So we use reflection to find
- * class names and constructors on the classpath.
+ * Index the classpath *without* using the java compiler API. The classpath can contain problematic types, for example
+ * references to classes that *aren't* present. So we use reflection to find class names and constructors on the
+ * classpath.
  *
- * <p>The isn't the only way we inspect the classpath---when completing members, for example, we use
- * the Javac API. This path is strictly for when we have to search the *entire* classpath.
+ * <p>The isn't the only way we inspect the classpath---when completing members, for example, we use the Javac API. This
+ * path is strictly for when we have to search the *entire* classpath.
  */
 class ClassPathIndex {
 
@@ -135,9 +135,7 @@ class ClassPathIndex {
             int modifiers = candidate.getModifiers();
 
             if (isPublicClass && Modifier.isPublic(modifiers)) return true;
-            else if (isSamePackage
-                    && !Modifier.isPrivate(modifiers)
-                    && !Modifier.isProtected(modifiers)) return true;
+            else if (isSamePackage && !Modifier.isPrivate(modifiers) && !Modifier.isProtected(modifiers)) return true;
         }
 
         return false;
@@ -155,18 +153,14 @@ class ClassPathIndex {
         Predicate<ClassPath.ClassInfo> matches =
                 c -> {
                     return c.getPackageName().equals(parentPackage)
-                            && Completions.containsCharactersInOrder(
-                                    c.getSimpleName(), partialClass, false);
+                            && Completions.containsCharactersInOrder(c.getSimpleName(), partialClass, false);
                 };
 
         return topLevelClasses.stream().filter(matches);
     }
 
     Optional<ClassPath.ClassInfo> loadPackage(String prefix) {
-        return topLevelClasses
-                .stream()
-                .filter(c -> c.getPackageName().startsWith(prefix))
-                .findAny();
+        return topLevelClasses.stream().filter(c -> c.getPackageName().startsWith(prefix)).findAny();
     }
 
     private static final Logger LOG = Logger.getLogger("main");

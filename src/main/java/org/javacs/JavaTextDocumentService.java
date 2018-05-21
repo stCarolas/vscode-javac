@@ -47,10 +47,8 @@ class JavaTextDocumentService implements TextDocumentService {
         LOG.info("Lint " + Joiner.on(", ").join(paths));
 
         List<javax.tools.Diagnostic<? extends JavaFileObject>> errors = new ArrayList<>();
-        Map<URI, Optional<String>> content =
-                paths.stream().collect(Collectors.toMap(f -> f, this::activeContent));
-        DiagnosticCollector<JavaFileObject> compile =
-                server.configured().compiler.compileBatch(content);
+        Map<URI, Optional<String>> content = paths.stream().collect(Collectors.toMap(f -> f, this::activeContent));
+        DiagnosticCollector<JavaFileObject> compile = server.configured().compiler.compileBatch(content);
 
         errors.addAll(compile.getDiagnostics());
 
@@ -58,26 +56,20 @@ class JavaTextDocumentService implements TextDocumentService {
     }
 
     private void publishDiagnostics(
-            Collection<URI> touched,
-            List<javax.tools.Diagnostic<? extends JavaFileObject>> diagnostics) {
+            Collection<URI> touched, List<javax.tools.Diagnostic<? extends JavaFileObject>> diagnostics) {
         Map<URI, PublishDiagnosticsParams> files =
                 touched.stream()
                         .collect(
                                 Collectors.toMap(
                                         uri -> uri,
-                                        newUri ->
-                                                new PublishDiagnosticsParams(
-                                                        newUri.toString(), new ArrayList<>())));
+                                        newUri -> new PublishDiagnosticsParams(newUri.toString(), new ArrayList<>())));
 
         // Organize diagnostics by file
         for (javax.tools.Diagnostic<? extends JavaFileObject> error : diagnostics) {
             URI uri = error.getSource().toUri();
             PublishDiagnosticsParams publish =
                     files.computeIfAbsent(
-                            uri,
-                            newUri ->
-                                    new PublishDiagnosticsParams(
-                                            newUri.toString(), new ArrayList<>()));
+                            uri, newUri -> new PublishDiagnosticsParams(newUri.toString(), new ArrayList<>()));
             Lints.convert(error).ifPresent(publish.getDiagnostics()::add);
         }
 
@@ -89,17 +81,8 @@ class JavaTextDocumentService implements TextDocumentService {
                     if (touched.contains(file)) {
                         client.join().publishDiagnostics(errors);
 
-                        LOG.info(
-                                "Published "
-                                        + errors.getDiagnostics().size()
-                                        + " errors from "
-                                        + file);
-                    } else
-                        LOG.info(
-                                "Ignored "
-                                        + errors.getDiagnostics().size()
-                                        + " errors from not-open "
-                                        + file);
+                        LOG.info("Published " + errors.getDiagnostics().size() + " errors from " + file);
+                    } else LOG.info("Ignored " + errors.getDiagnostics().size() + " errors from not-open " + file);
                 });
     }
 
@@ -117,17 +100,12 @@ class JavaTextDocumentService implements TextDocumentService {
         Configured config = server.configured();
         FocusedResult result = config.compiler.compileFocused(uri, content, line, character, true);
         List<CompletionItem> items =
-                Completions.at(result, config.index, config.docs)
-                        .limit(server.maxItems)
-                        .collect(Collectors.toList());
+                Completions.at(result, config.index, config.docs).limit(server.maxItems).collect(Collectors.toList());
         CompletionList list = new CompletionList(items.size() == server.maxItems, items);
         Duration elapsed = Duration.between(started, Instant.now());
 
         if (list.isIncomplete())
-            LOG.info(
-                    String.format(
-                            "Found %d items (incomplete) in %d ms",
-                            items.size(), elapsed.toMillis()));
+            LOG.info(String.format("Found %d items (incomplete) in %d ms", items.size(), elapsed.toMillis()));
         else LOG.info(String.format("Found %d items in %d ms", items.size(), elapsed.toMillis()));
 
         return CompletableFuture.completedFuture(Either.forRight(list));
@@ -152,8 +130,7 @@ class JavaTextDocumentService implements TextDocumentService {
 
         LOG.info(String.format("hover at %s %d:%d", uri, line, character));
 
-        FocusedResult result =
-                server.configured().compiler.compileFocused(uri, content, line, character, false);
+        FocusedResult result = server.configured().compiler.compileFocused(uri, content, line, character, false);
         Hover hover = elementAtCursor(result).map(this::hoverText).orElseGet(this::emptyHover);
 
         return CompletableFuture.completedFuture(hover);
@@ -187,15 +164,13 @@ class JavaTextDocumentService implements TextDocumentService {
 
         Configured config = server.configured();
         FocusedResult result = config.compiler.compileFocused(uri, content, line, character, true);
-        SignatureHelp help =
-                Signatures.help(result, line, character, config.docs).orElseGet(SignatureHelp::new);
+        SignatureHelp help = Signatures.help(result, line, character, config.docs).orElseGet(SignatureHelp::new);
 
         return CompletableFuture.completedFuture(help);
     }
 
     @Override
-    public CompletableFuture<List<? extends Location>> definition(
-            TextDocumentPositionParams position) {
+    public CompletableFuture<List<? extends Location>> definition(TextDocumentPositionParams position) {
         URI uri = URI.create(position.getTextDocument().getUri());
         Optional<String> content = activeContent(uri);
         int line = position.getPosition().getLine() + 1;
@@ -224,25 +199,20 @@ class JavaTextDocumentService implements TextDocumentService {
         Configured config = server.configured();
         FocusedResult result = config.compiler.compileFocused(uri, content, line, character, false);
         List<Location> locations =
-                References.findReferences(result, config.find)
-                        .limit(server.maxItems)
-                        .collect(Collectors.toList());
+                References.findReferences(result, config.find).limit(server.maxItems).collect(Collectors.toList());
 
         return CompletableFuture.completedFuture(locations);
     }
 
     @Override
-    public CompletableFuture<List<? extends DocumentHighlight>> documentHighlight(
-            TextDocumentPositionParams position) {
+    public CompletableFuture<List<? extends DocumentHighlight>> documentHighlight(TextDocumentPositionParams position) {
         return null;
     }
 
     @Override
-    public CompletableFuture<List<? extends SymbolInformation>> documentSymbol(
-            DocumentSymbolParams params) {
+    public CompletableFuture<List<? extends SymbolInformation>> documentSymbol(DocumentSymbolParams params) {
         URI uri = URI.create(params.getTextDocument().getUri());
-        List<SymbolInformation> symbols =
-                server.configured().index.allInFile(uri).collect(Collectors.toList());
+        List<SymbolInformation> symbols = server.configured().index.allInFile(uri).collect(Collectors.toList());
 
         return CompletableFuture.completedFuture(symbols);
     }
@@ -263,14 +233,7 @@ class JavaTextDocumentService implements TextDocumentService {
 
         Configured config = server.configured();
         List<Command> commands =
-                new CodeActions(
-                                config.compiler,
-                                uri,
-                                activeContent(uri),
-                                line,
-                                character,
-                                config.index)
-                        .find(params);
+                new CodeActions(config.compiler, uri, activeContent(uri), line, character, config.index).find(params);
 
         return CompletableFuture.completedFuture(commands);
     }
@@ -291,14 +254,12 @@ class JavaTextDocumentService implements TextDocumentService {
     }
 
     @Override
-    public CompletableFuture<List<? extends TextEdit>> rangeFormatting(
-            DocumentRangeFormattingParams params) {
+    public CompletableFuture<List<? extends TextEdit>> rangeFormatting(DocumentRangeFormattingParams params) {
         return null;
     }
 
     @Override
-    public CompletableFuture<List<? extends TextEdit>> onTypeFormatting(
-            DocumentOnTypeFormattingParams params) {
+    public CompletableFuture<List<? extends TextEdit>> onTypeFormatting(DocumentOnTypeFormattingParams params) {
         return null;
     }
 
@@ -327,18 +288,12 @@ class JavaTextDocumentService implements TextDocumentService {
         if (document.getVersion() > existing.version) {
             for (TextDocumentContentChangeEvent change : params.getContentChanges()) {
                 if (change.getRange() == null)
-                    activeDocuments.put(
-                            uri, new VersionedContent(change.getText(), document.getVersion()));
+                    activeDocuments.put(uri, new VersionedContent(change.getText(), document.getVersion()));
                 else newText = patch(newText, change);
             }
 
             activeDocuments.put(uri, new VersionedContent(newText, document.getVersion()));
-        } else
-            LOG.warning(
-                    "Ignored change with version "
-                            + document.getVersion()
-                            + " <= "
-                            + existing.version);
+        } else LOG.warning("Ignored change with version " + document.getVersion() + " <= " + existing.version);
     }
 
     private String patch(String sourceText, TextDocumentContentChangeEvent change) {
@@ -386,9 +341,7 @@ class JavaTextDocumentService implements TextDocumentService {
         activeDocuments.remove(uri);
 
         // Clear diagnostics
-        client.join()
-                .publishDiagnostics(
-                        new PublishDiagnosticsParams(uri.toString(), new ArrayList<>()));
+        client.join().publishDiagnostics(new PublishDiagnosticsParams(uri.toString(), new ArrayList<>()));
     }
 
     @Override

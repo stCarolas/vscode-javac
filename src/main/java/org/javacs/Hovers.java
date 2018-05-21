@@ -18,8 +18,7 @@ public class Hovers {
     public static Hover hoverText(Element el, Javadocs docs) {
         Optional<String> doc = docs.doc(el).map(Hovers::commentText).map(Javadocs::htmlToMarkdown);
         String sig = signature(el);
-        String result =
-                doc.map(text -> String.format("```java\n%s\n```\n%s", sig, text)).orElse(sig);
+        String result = doc.map(text -> String.format("```java\n%s\n```\n%s", sig, text)).orElse(sig);
 
         return new Hover(Collections.singletonList(Either.forLeft(result)), null);
     }
@@ -42,12 +41,7 @@ public class Hovers {
         if (el instanceof ExecutableElement) {
             ExecutableElement method = (ExecutableElement) el;
 
-            return method.getReturnType()
-                    + " "
-                    + method.getSimpleName()
-                    + "("
-                    + params(method.getParameters())
-                    + ")";
+            return method.getReturnType() + " " + method.getSimpleName() + "(" + params(method.getParameters()) + ")";
         } else if (el instanceof TypeElement) {
             TypeElement type = (TypeElement) el;
 
@@ -59,12 +53,8 @@ public class Hovers {
         return params.stream().map(p -> p.asType().toString()).collect(Collectors.joining(", "));
     }
 
-    public static String methodSignature(
-            ExecutableElement e, boolean showReturn, boolean showMethodName) {
-        String name =
-                e.getKind() == ElementKind.CONSTRUCTOR
-                        ? constructorName(e)
-                        : e.getSimpleName().toString();
+    public static String methodSignature(ExecutableElement e, boolean showReturn, boolean showMethodName) {
+        String name = e.getKind() == ElementKind.CONSTRUCTOR ? constructorName(e) : e.getSimpleName().toString();
         boolean varargs = e.isVarArgs();
         StringJoiner params = new StringJoiner(", ");
 

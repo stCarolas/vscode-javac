@@ -26,8 +26,7 @@ public class CodeActionsTest {
     }
 
     private static final JavaLanguageServer server =
-            LanguageServerFixture.getJavaLanguageServer(
-                    LanguageServerFixture.DEFAULT_WORKSPACE_ROOT, diagnostics::add);
+            LanguageServerFixture.getJavaLanguageServer(LanguageServerFixture.DEFAULT_WORKSPACE_ROOT, diagnostics::add);
 
     @Test
     public void addImport() {
@@ -43,12 +42,9 @@ public class CodeActionsTest {
     @Test
     public void missingImport() {
         String message =
-                "cannot find symbol\n"
-                        + "  symbol:   class ArrayList\n"
-                        + "  location: class org.javacs.MissingImport";
+                "cannot find symbol\n" + "  symbol:   class ArrayList\n" + "  location: class org.javacs.MissingImport";
 
-        assertThat(
-                CodeActions.cannotFindSymbolClassName(message), equalTo(Optional.of("ArrayList")));
+        assertThat(CodeActions.cannotFindSymbolClassName(message), equalTo(Optional.of("ArrayList")));
     }
 
     private List<? extends Command> commands(String file, int row, int column) {
@@ -57,10 +53,7 @@ public class CodeActionsTest {
 
         try {
             InputStream in = Files.newInputStream(new File(uri).toPath());
-            String content =
-                    new BufferedReader(new InputStreamReader(in))
-                            .lines()
-                            .collect(Collectors.joining("\n"));
+            String content = new BufferedReader(new InputStreamReader(in)).lines().collect(Collectors.joining("\n"));
             TextDocumentItem open = new TextDocumentItem();
 
             open.setText(content);
@@ -68,8 +61,7 @@ public class CodeActionsTest {
             open.setLanguageId("java");
 
             server.getTextDocumentService().didOpen(new DidOpenTextDocumentParams(open, content));
-            server.getTextDocumentService()
-                    .didSave(new DidSaveTextDocumentParams(document, content));
+            server.getTextDocumentService().didSave(new DidSaveTextDocumentParams(document, content));
 
             return diagnostics
                     .stream()
@@ -84,21 +76,17 @@ public class CodeActionsTest {
     private boolean includes(Range range, int line, int character) {
         boolean startCondition =
                 range.getStart().getLine() < line
-                        || (range.getStart().getLine() == line
-                                && range.getStart().getCharacter() <= character);
+                        || (range.getStart().getLine() == line && range.getStart().getCharacter() <= character);
         boolean endCondition =
                 line < range.getEnd().getLine()
-                        || (line == range.getEnd().getLine()
-                                && character <= range.getEnd().getCharacter());
+                        || (line == range.getEnd().getLine() && character <= range.getEnd().getCharacter());
 
         return startCondition && endCondition;
     }
 
-    private Stream<? extends Command> codeActionsAt(
-            TextDocumentIdentifier documentId, Diagnostic diagnostic) {
+    private Stream<? extends Command> codeActionsAt(TextDocumentIdentifier documentId, Diagnostic diagnostic) {
         CodeActionParams params =
-                new CodeActionParams(
-                        documentId, diagnostic.getRange(), new CodeActionContext(diagnostics));
+                new CodeActionParams(documentId, diagnostic.getRange(), new CodeActionContext(diagnostics));
 
         return server.getTextDocumentService().codeAction(params).join().stream();
     }

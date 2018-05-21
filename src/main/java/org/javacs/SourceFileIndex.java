@@ -16,8 +16,7 @@ class SourceFileIndex {
     /**
      * Simple names of reference appearing in this file.
      *
-     * <p>This is fast to compute and provides a useful starting point for find-references
-     * operations.
+     * <p>This is fast to compute and provides a useful starting point for find-references operations.
      */
     final Set<String> references = new HashSet<>();
 

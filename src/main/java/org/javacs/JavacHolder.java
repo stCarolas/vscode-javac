@@ -29,9 +29,8 @@ import javax.lang.model.element.Element;
 import javax.tools.*;
 
 /**
- * Maintains a reference to a Java compiler, and several of its internal data structures, which we
- * need to fiddle with to get incremental compilation and extract the diagnostic information we
- * want.
+ * Maintains a reference to a Java compiler, and several of its internal data structures, which we need to fiddle with
+ * to get incremental compilation and extract the diagnostic information we want.
  */
 public class JavacHolder {
 
@@ -48,8 +47,7 @@ public class JavacHolder {
             URI file, Optional<String> textContent, int line, int column, boolean pruneStatements) {
         JavaFileObject fileObject = findFile(file, textContent);
 
-        if (pruneStatements)
-            fileObject = TreePruner.putSemicolonAfterCursor(fileObject, line, column);
+        if (pruneStatements) fileObject = TreePruner.putSemicolonAfterCursor(fileObject, line, column);
 
         JavacTask task = createTask(Collections.singleton(fileObject), true);
         TreePruner pruner = new TreePruner(task);
@@ -72,23 +70,19 @@ public class JavacHolder {
                         if (e.getSourceFile() == null) return;
 
                         if (e.getKind() == TaskEvent.Kind.PARSE) {
-                            boolean isCursorInFile =
-                                    e.getCompilationUnit().getSourceFile().toUri().equals(file);
+                            boolean isCursorInFile = e.getCompilationUnit().getSourceFile().toUri().equals(file);
 
                             if (isCursorInFile) {
-                                pruner.removeNonCursorMethodBodies(
-                                        e.getCompilationUnit(), line, column);
+                                pruner.removeNonCursorMethodBodies(e.getCompilationUnit(), line, column);
 
                                 if (pruneStatements)
-                                    pruner.removeStatementsAfterCursor(
-                                            e.getCompilationUnit(), line, column);
+                                    pruner.removeStatementsAfterCursor(e.getCompilationUnit(), line, column);
                             } else {
                                 pruner.removeAllMethodBodies(e.getCompilationUnit());
                             }
                         }
 
-                        profile.get(e.getKind()).get(e.getSourceFile().toUri()).finished =
-                                Optional.of(Instant.now());
+                        profile.get(e.getKind()).get(e.getSourceFile().toUri()).finished = Optional.of(Instant.now());
                     }
                 });
 
@@ -105,17 +99,10 @@ public class JavacHolder {
             // Log timing
             profile.forEach(
                     (kind, timed) -> {
-                        long elapsed =
-                                timed.values()
-                                        .stream()
-                                        .mapToLong(p -> p.elapsed().toMillis())
-                                        .sum();
+                        long elapsed = timed.values().stream().mapToLong(p -> p.elapsed().toMillis()).sum();
 
                         if (timed.size() > 5) {
-                            LOG.info(
-                                    String.format(
-                                            "%s\t%d ms\t%d files",
-                                            kind.name(), elapsed, timed.size()));
+                            LOG.info(String.format("%s\t%d ms\t%d files", kind.name(), elapsed, timed.size()));
                         } else {
                             String names =
                                     timed.keySet()
@@ -136,11 +123,9 @@ public class JavacHolder {
     }
 
     /**
-     * Clear files and all their dependents, recompile, compileBatch the index, and report any
-     * errors.
+     * Clear files and all their dependents, recompile, compileBatch the index, and report any errors.
      *
-     * <p>If these files reference un-compiled dependencies, those dependencies will also be parsed
-     * and compiled.
+     * <p>If these files reference un-compiled dependencies, those dependencies will also be parsed and compiled.
      */
     public DiagnosticCollector<JavaFileObject> compileBatch(Map<URI, Optional<String>> files) {
         return compileBatch(files, (task, tree) -> {});
@@ -158,8 +143,8 @@ public class JavacHolder {
     public final Set<Path> sourcePath;
 
     /**
-     * Javac tool creates a new Context every time we do createTask(...), so maintaining a reference
-     * to it doesn't really do anything
+     * Javac tool creates a new Context every time we do createTask(...), so maintaining a reference to it doesn't
+     * really do anything
      */
     private final JavacTool javac = JavacTool.create();
 
@@ -175,16 +160,16 @@ public class JavacHolder {
     private final JavaFileManager incrementalFileManager = new IncrementalFileManager(fileManager);
 
     /**
-     * javac isn't friendly to swapping out the error-reporting DiagnosticListener, so we install
-     * this intermediate DiagnosticListener, which forwards to errorsDelegate
+     * javac isn't friendly to swapping out the error-reporting DiagnosticListener, so we install this intermediate
+     * DiagnosticListener, which forwards to errorsDelegate
      */
     private void onError(Diagnostic<? extends JavaFileObject> diagnostic) {
         onErrorDelegate.report(diagnostic);
     }
 
     /**
-     * Error reporting initially goes nowhere. We will replace this with a function that collects
-     * errors so we can report all the errors associated with a file apply once.
+     * Error reporting initially goes nowhere. We will replace this with a function that collects errors so we can
+     * report all the errors associated with a file apply once.
      */
     private DiagnosticListener<JavaFileObject> onErrorDelegate = diagnostic -> {};
 
@@ -274,8 +259,7 @@ public class JavacHolder {
                 throw ShowMessageException.error("Error created output directory " + dir, null);
             }
         } else if (!Files.isDirectory(dir))
-            throw ShowMessageException.error(
-                    "Output directory " + dir + " is not a directory", null);
+            throw ShowMessageException.error("Output directory " + dir + " is not a directory", null);
     }
 
     // TODO this should return Optional.empty() file URI is not file: and text is empty
@@ -304,10 +288,7 @@ public class JavacHolder {
         // TODO remove all URIs from fileManager
 
         List<JavaFileObject> objects =
-                files.entrySet()
-                        .stream()
-                        .map(e -> findFile(e.getKey(), e.getValue()))
-                        .collect(Collectors.toList());
+                files.entrySet().stream().map(e -> findFile(e.getKey(), e.getValue())).collect(Collectors.toList());
 
         JavacTask task = createTask(objects, false);
 
@@ -339,8 +320,7 @@ public class JavacHolder {
     }
 
     private boolean catchJavacError(AssertionError e) {
-        if (e.getStackTrace().length > 0
-                && e.getStackTrace()[0].getClassName().startsWith("com.sun.tools.javac")) {
+        if (e.getStackTrace().length > 0 && e.getStackTrace()[0].getClassName().startsWith("com.sun.tools.javac")) {
             LOG.log(Level.WARNING, "Failed analyze phase", e);
 
             return true;

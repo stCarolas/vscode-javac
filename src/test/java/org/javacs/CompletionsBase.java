@@ -40,8 +40,7 @@ public class CompletionsBase {
         return items.stream().map(CompletionsBase::itemInsertText).collect(Collectors.toSet());
     }
 
-    protected Map<String, Integer> insertCount(String file, int row, int column)
-            throws IOException {
+    protected Map<String, Integer> insertCount(String file, int row, int column) throws IOException {
         List<? extends CompletionItem> items = items(file, row, column);
         Map<String, Integer> result = new HashMap<>();
 
@@ -73,23 +72,19 @@ public class CompletionsBase {
         return items.stream()
                 .flatMap(
                         i -> {
-                            if (i.getDocumentation() != null)
-                                return Stream.of(i.getDocumentation().trim());
+                            if (i.getDocumentation() != null) return Stream.of(i.getDocumentation().trim());
                             else return Stream.empty();
                         })
                 .collect(Collectors.toSet());
     }
 
-    protected static final JavaLanguageServer server =
-            LanguageServerFixture.getJavaLanguageServer();
+    protected static final JavaLanguageServer server = LanguageServerFixture.getJavaLanguageServer();
 
     protected List<? extends CompletionItem> items(String file, int row, int column) {
         URI uri = FindResource.uri(file);
         TextDocumentPositionParams position =
                 new TextDocumentPositionParams(
-                        new TextDocumentIdentifier(uri.toString()),
-                        uri.toString(),
-                        new Position(row - 1, column - 1));
+                        new TextDocumentIdentifier(uri.toString()), uri.toString(), new Position(row - 1, column - 1));
 
         try {
             return server.getTextDocumentService().completion(position).get().getRight().getItems();

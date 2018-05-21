@@ -59,10 +59,7 @@ public class CompletionsTest extends CompletionsBase {
                 "includes non-static members",
                 suggestions,
                 hasItems("fields", "methods", "fieldsPrivate", "methodsPrivate", "getClass"));
-        assertThat(
-                "excludes constructors",
-                suggestions,
-                not(hasItem(startsWith("AutocompleteMember"))));
+        assertThat("excludes constructors", suggestions, not(hasItem(startsWith("AutocompleteMember"))));
     }
 
     @Test
@@ -118,9 +115,7 @@ public class CompletionsTest extends CompletionsBase {
         // f
         Set<String> suggestions = insertText(file, 22, 10);
 
-        assertThat(
-                suggestions,
-                hasItems("fields", "fieldStatic", "methods", "methodStatic", "arguments"));
+        assertThat(suggestions, hasItems("fields", "fieldStatic", "methods", "methodStatic", "arguments"));
     }
 
     @Test
@@ -504,9 +499,7 @@ public class CompletionsTest extends CompletionsBase {
         for (CompletionItem each : items) {
             if (each.getInsertText().equals("ArrayList<>"))
                 assertThat(
-                        "new ? auto-imports",
-                        each.getAdditionalTextEdits(),
-                        both(not(empty())).and(not(nullValue())));
+                        "new ? auto-imports", each.getAdditionalTextEdits(), both(not(empty())).and(not(nullValue())));
         }
     }
 
@@ -547,10 +540,7 @@ public class CompletionsTest extends CompletionsBase {
         // Static methods
         Set<String> suggestions = insertText(file, 6, 12);
 
-        assertThat(
-                "Has deeply nested class",
-                suggestions,
-                not(hasItems("google.common.collect.Lists")));
+        assertThat("Has deeply nested class", suggestions, not(hasItems("google.common.collect.Lists")));
     }
 
     @Test
@@ -586,10 +576,7 @@ public class CompletionsTest extends CompletionsBase {
 
         for (CompletionItem item : items) {
             if (item.getLabel().equals("OtherPackagePublic"))
-                assertThat(
-                        "Auto-import OtherPackagePublic",
-                        item.getAdditionalTextEdits(),
-                        not(empty()));
+                assertThat("Auto-import OtherPackagePublic", item.getAdditionalTextEdits(), not(empty()));
         }
     }
 
@@ -622,8 +609,7 @@ public class CompletionsTest extends CompletionsBase {
         // AutocompleteInners.I
         Set<String> suggestions = insertText(file, 5, 29);
 
-        assertThat(
-                "suggests qualified inner class declaration", suggestions, hasItem("InnerClass"));
+        assertThat("suggests qualified inner class declaration", suggestions, hasItem("InnerClass"));
         assertThat("suggests qualified inner enum declaration", suggestions, hasItem("InnerEnum"));
     }
 
@@ -634,10 +620,8 @@ public class CompletionsTest extends CompletionsBase {
         // I
         Set<String> suggestions = insertText(file, 6, 10);
 
-        assertThat(
-                "suggests unqualified inner class declaration", suggestions, hasItem("InnerClass"));
-        assertThat(
-                "suggests unqualified inner enum declaration", suggestions, hasItem("InnerEnum"));
+        assertThat("suggests unqualified inner class declaration", suggestions, hasItem("InnerClass"));
+        assertThat("suggests unqualified inner enum declaration", suggestions, hasItem("InnerEnum"));
     }
 
     @Test
@@ -647,12 +631,8 @@ public class CompletionsTest extends CompletionsBase {
         // new AutocompleteInners.I
         Set<String> suggestions = insertText(file, 10, 33);
 
-        assertThat(
-                "suggests qualified inner class declaration", suggestions, hasItem("InnerClass"));
-        assertThat(
-                "suggests qualified inner enum declaration",
-                suggestions,
-                not(hasItem("InnerEnum")));
+        assertThat("suggests qualified inner class declaration", suggestions, hasItem("InnerClass"));
+        assertThat("suggests qualified inner enum declaration", suggestions, not(hasItem("InnerEnum")));
     }
 
     @Test
@@ -662,12 +642,8 @@ public class CompletionsTest extends CompletionsBase {
         // new I
         Set<String> suggestions = insertText(file, 11, 14);
 
-        assertThat(
-                "suggests unqualified inner class declaration", suggestions, hasItem("InnerClass"));
-        assertThat(
-                "suggests unqualified inner enum declaration",
-                suggestions,
-                not(hasItem("InnerEnum")));
+        assertThat("suggests unqualified inner class declaration", suggestions, hasItem("InnerClass"));
+        assertThat("suggests unqualified inner enum declaration", suggestions, not(hasItem("InnerEnum")));
     }
 
     @Test
