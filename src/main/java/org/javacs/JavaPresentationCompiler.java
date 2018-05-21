@@ -154,39 +154,55 @@ public class JavaPresentationCompiler {
     public List<Element> identifiers(URI file, String contents, int line, int character) {
         recompile(file, contents, line, character);
 
-        List<Element> result = new ArrayList<>();
-        Scope start = scope(file, contents, line, character);
-        Trees trees = Trees.instance(cache.task);
-        Types types = cache.task.getTypes();
-        for (Scope s = start; s != null; s = s.getEnclosingScope()) {
-            for (Element e : s.getLocalElements()) {
-                // Type names should only be included if they are accessible
-                if (e instanceof TypeElement) {
-                    TypeElement te = (TypeElement) e;
-                    if (trees.isAccessible(start, te)) result.add(te);
-                } else if (e instanceof VariableElement) {
-                    VariableElement ve = (VariableElement) e;
-                    String name = ve.getSimpleName().toString();
-                    if (name.equals("this") || name.equals("super")) {
-                        result.add(ve);
-                        // Unwrap `this` and `super`
-                        TypeMirror thisType = ve.asType();
-                        if (thisType instanceof DeclaredType) {
-                            DeclaredType thisDeclaredType = (DeclaredType) thisType;
-                            Element thisElement = types.asElement(thisDeclaredType);
-                            for (Element thisMember : thisElement.getEnclosedElements()) {
-                                if (trees.isAccessible(start, thisMember, thisDeclaredType)) {
-                                    result.add(thisMember);
-                                }
-                            }
+        class Walk {
+            Scope start = scope(file, contents, line, character);
+            Trees trees = Trees.instance(cache.task);
+            Types types = cache.task.getTypes();
+            List<Element> result = new ArrayList<>();
+
+            boolean isThisOrSuper(VariableElement ve) {
+                String name = ve.getSimpleName().toString();
+                return name.equals("this") || name.equals("super");
+            }
+
+            void unwrap(VariableElement ve) {
+                TypeMirror thisType = ve.asType();
+                if (thisType instanceof DeclaredType) {
+                    DeclaredType thisDeclaredType = (DeclaredType) thisType;
+                    Element thisElement = types.asElement(thisDeclaredType);
+                    for (Element thisMember : thisElement.getEnclosedElements()) {
+                        if (trees.isAccessible(start, thisMember, thisDeclaredType)) {
+                            result.add(thisMember);
                         }
-                    } else result.add(ve);
-                } else {
-                    result.add(e);
+                    }
                 }
             }
+
+            void walkLocals(Scope s) {
+                for (Element e : s.getLocalElements()) {
+                    if (e instanceof TypeElement) {
+                        TypeElement te = (TypeElement) e;
+                        if (trees.isAccessible(start, te)) result.add(te);
+                    } else if (e instanceof VariableElement) {
+                        VariableElement ve = (VariableElement) e;
+                        result.add(ve);
+                        if (isThisOrSuper(ve)) {
+                            unwrap(ve);
+                        }
+                    } else {
+                        result.add(e);
+                    }
+                }
+            }
+
+            List<Element> walkScopes() {
+                for (Scope s = start; s != null; s = s.getEnclosingScope()) {
+                    walkLocals(s);
+                }
+                return result;
+            }
         }
-        return result;
+        return new Walk().walkScopes();
     }
 
     /** Find all members of expression at line:character */
