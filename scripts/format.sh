@@ -6,7 +6,7 @@ root_dir="$(git rev-parse --show-toplevel)"
 
 # Path to jar
 jar_base_dir="git_hooks/"
-formatter_jar="${root_dir}/${jar_base_dir}/google-java-format-1.3-all-deps.jar"
+formatter_jar="${root_dir}/${jar_base_dir}/google-java-format-1.6-SNAPSHOT-all-deps.jar"
 formatter_cmd="java -jar ${formatter_jar}"
 
 # Format file in-place and use 4-space style (AOSP).
