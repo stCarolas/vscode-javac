@@ -11,7 +11,6 @@ import javax.tools.*;
 
 class Pruner {
     // Parse-only compiler
-
     private static final Logger LOG = Logger.getLogger("main");
     private static final JavaCompiler COMPILER = ToolProvider.getSystemJavaCompiler();
     private static final StandardJavaFileManager FILE_MANAGER =
@@ -34,7 +33,8 @@ class Pruner {
 
     private final JavacTask task;
     private final CompilationUnitTree root;
-    private final StringBuffer contents;
+    private final StringBuilder contents;
+    private long focusStart = -1, focusEnd = -1;
 
     Pruner(URI file, String contents) {
         this.task = singleFileTask(file, contents);
@@ -43,10 +43,10 @@ class Pruner {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        this.contents = new StringBuffer(contents);
+        this.contents = new StringBuilder(contents);
     }
 
-    String prune(int line, int character) {
+    void prune(int line, int character) {
         SourcePositions sourcePositions = Trees.instance(task).getSourcePositions();
         LineMap lines = root.getLineMap();
         long cursor = lines.getPosition(line, character);
@@ -72,8 +72,11 @@ class Pruner {
 
             @Override
             public Void visitBlock(BlockTree node, Void aVoid) {
-                if (containsCursor(node)) super.visitBlock(node, aVoid);
-                else {
+                if (containsCursor(node)) {
+                    focusStart = sourcePositions.getStartPosition(root, node);
+                    focusEnd = sourcePositions.getEndPosition(root, node);
+                    super.visitBlock(node, aVoid);
+                } else {
                     long start = sourcePositions.getStartPosition(root, node),
                             end = sourcePositions.getEndPosition(root, node);
                     erase(start + 1, end - 1);
@@ -88,7 +91,17 @@ class Pruner {
         }
 
         new Scan().scan(root, null);
+    }
 
+    String contents() {
         return contents.toString();
+    }
+
+    long focusStart() {
+        return focusStart;
+    }
+
+    long focusEnd() {
+        return focusEnd;
     }
 }

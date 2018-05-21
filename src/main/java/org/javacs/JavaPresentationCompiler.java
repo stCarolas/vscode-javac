@@ -20,11 +20,6 @@ public class JavaPresentationCompiler {
     private final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
     private final StandardJavaFileManager fileManager =
             compiler.getStandardFileManager(this::report, null, Charset.defaultCharset());
-    /**
-     * Cache a pre-compiled version of a single source file. We will always try to recompile
-     * incrementally using this file. When the user switches files or makes so many edits that we
-     * can't re-use this cache, we will recompute it.
-     */
     private Cache cache;
 
     private void report(Diagnostic<? extends JavaFileObject> diags) {
@@ -48,12 +43,22 @@ public class JavaPresentationCompiler {
         final CompilationUnitTree parsed;
         final Element analyzed;
         final JavacTask task;
+        final long focusStart, focusEnd;
 
-        Cache(URI file, String contents) {
-            this.contents = contents;
+        Cache(URI file, String contents, int line, int character) {
+            if (line != -1) {
+                Pruner p = new Pruner(file, contents);
+                p.prune(line, character);
+                this.contents = p.contents();
+                this.focusStart = p.focusStart();
+                this.focusEnd = p.focusEnd();
+            } else {
+                this.contents = contents;
+                this.focusStart = 0;
+                this.focusEnd = contents.length();
+            }
             this.file = file;
             this.task = singleFileTask(file, contents);
-
             try {
                 this.parsed = task.parse().iterator().next();
                 this.analyzed = task.analyze().iterator().next();
@@ -61,17 +66,19 @@ public class JavaPresentationCompiler {
                 throw new RuntimeException(e);
             }
         }
-    }
 
-    private void recompileIfChanged(URI file, String contents) {
-        if (cache == null || !cache.file.equals(file) || !cache.contents.equals(contents)) {
-            cache = new Cache(file, contents);
+        boolean focusIncludes(int line, int character) {
+            long p = parsed.getLineMap().getPosition(line, character);
+            return focusStart <= p && p <= focusEnd;
         }
     }
 
-    private void recompileIncrementally(URI file, String contents) {
-        if (cache == null || !cache.file.equals(file)) {
-            cache = new Cache(file, contents);
+    private void recompile(URI file, String contents, int line, int character) {
+        if (cache == null
+                || !cache.file.equals(file)
+                || !cache.contents.equals(contents)
+                || !cache.focusIncludes(line, character)) {
+            cache = new Cache(file, contents, line, character);
         }
         // TODO recover from small changes, recompile on large changes
     }
@@ -136,7 +143,7 @@ public class JavaPresentationCompiler {
 
     /** Find the scope at a point. Exposed for testing. */
     Scope scope(URI file, String contents, int line, int character) {
-        recompileIncrementally(file, contents);
+        recompile(file, contents, line, character);
 
         Trees trees = Trees.instance(cache.task);
         TreePath path = path(file, contents, line, character);
@@ -144,14 +151,13 @@ public class JavaPresentationCompiler {
     }
 
     /** Find all members of `expr`, which can be any expression */
-    public List<? extends Element> members(
-            URI file, String contents, int line, int character, String expr) {
+    public List<? extends Element> members(URI file, String contents, int line, int character) {
         return TODO();
     }
 
     /** Find the smallest element that includes the cursor */
     public Element element(URI file, String contents, int line, int character) {
-        recompileIfChanged(file, contents);
+        recompile(file, contents, line, character);
 
         Trees trees = Trees.instance(cache.task);
         TreePath path = path(file, contents, line, character);

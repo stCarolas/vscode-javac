@@ -64,8 +64,8 @@ public class JavaPresentationCompilerTest {
     public void pruneMethods() {
         Pruner pruner =
                 new Pruner(URI.create("/PruneMethods.java"), contents("/PruneMethods.java"));
-        String pruned = pruner.prune(6, 17);
+        pruner.prune(6, 17);
         String expected = contents("/PruneMethods_erased.java");
-        assertThat(pruned, equalToIgnoringWhiteSpace(expected));
+        assertThat(pruner.contents(), equalToIgnoringWhiteSpace(expected));
     }
 }
