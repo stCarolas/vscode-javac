@@ -8,8 +8,6 @@ import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.function.Consumer;
-import java.util.function.ToIntFunction;
 import java.util.logging.*;
 import java.util.stream.Collectors;
 import javax.lang.model.*;
@@ -22,6 +20,8 @@ import javax.tools.*;
 public class JavaPresentationCompiler {
     private static final Logger LOG = Logger.getLogger("main");
 
+    // If you want to edit these, you need to create a new instance, because the delegate JavaCompiler remembers them from task to task
+    private final Set<Path> sourcePath, classPath;
     private final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
     // Use the same file manager for multiple tasks, so we don't repeatedly re-compile the same files
     private final StandardJavaFileManager fileManager =
@@ -29,6 +29,11 @@ public class JavaPresentationCompiler {
     // Cache a single compiled file
     // Since the user can only edit one file at a time, this should be sufficient
     private Cache cache;
+
+    public JavaPresentationCompiler(Set<Path> sourcePath, Set<Path> classPath) {
+        this.sourcePath = sourcePath;
+        this.classPath = classPath;
+    }
 
     private void report(Diagnostic<? extends JavaFileObject> diags) {
         LOG.warning(diags.getMessage(null));
@@ -69,7 +74,7 @@ public class JavaPresentationCompiler {
                         null,
                         fileManager,
                         JavaPresentationCompiler.this::report,
-                        options(Collections.emptySet(), Collections.emptySet()),
+                        options(sourcePath, classPath),
                         Collections.emptyList(),
                         Collections.singletonList(new StringFileObject(contents, file)));
     }
@@ -127,81 +132,65 @@ public class JavaPresentationCompiler {
         }
     }
 
-    private boolean leq(long beforeLine, long beforeColumn, long afterLine, long afterColumn) {
-        if (beforeLine < afterLine) return true;
-        else if (beforeLine == afterLine) return beforeColumn <= afterColumn;
-        else return false;
-    }
-
     private static <T> T TODO() {
         throw new UnsupportedOperationException("TODO");
     }
 
-    private void scan(CompilationUnitTree root, Consumer<Tree> forEach) {
-        new TreeScanner<Void, Void>() {
-            @Override
-            public Void scan(Tree tree, Void nothing) {
-                if (tree != null) forEach.accept(tree);
-                return super.scan(tree, nothing);
-            }
-        }.scan(root, null);
-    }
-
     /** Find the smallest tree that includes the cursor */
     private TreePath path(URI file, String contents, int line, int character) {
-        // Search for the smallest element that encompasses line:column
         Trees trees = Trees.instance(cache.task);
         SourcePositions pos = trees.getSourcePositions();
-        LineMap lines = cache.root.getLineMap();
-        ToIntFunction<Tree> width =
-                t -> {
-                    if (t == null) return Integer.MAX_VALUE;
-                    long start = pos.getStartPosition(cache.root, t),
-                            end = pos.getEndPosition(cache.root, t);
-                    if (start == -1 || end == -1) return Integer.MAX_VALUE;
-                    return (int) (end - start);
-                };
-        Ref<Tree> found = new Ref<>();
-        scan(
-                cache.root,
-                leaf -> {
-                    long start = pos.getStartPosition(cache.root, leaf),
-                            end = pos.getEndPosition(cache.root, leaf);
-                    // If element has no position, give up
-                    if (start == -1 || end == -1) return;
-                    long startLine = lines.getLineNumber(start),
-                            startColumn = lines.getColumnNumber(start),
-                            endLine = lines.getLineNumber(end),
-                            endColumn = lines.getColumnNumber(end);
-                    if (leq(startLine, startColumn, line, character)
-                            && leq(line, character, endLine, endColumn)) {
-                        if (width.applyAsInt(leaf) <= width.applyAsInt(found.value))
-                            found.value = leaf;
-                    }
-                });
-        if (found.value == null)
-            throw new RuntimeException(
-                    String.format("No TreePath to %s %d:%d", file, line, character));
-        else return trees.getPath(cache.root, found.value);
-    }
+        long cursor = cache.root.getLineMap().getPosition(line, character);
 
-    /** Find the scope at a point. Exposed for testing. */
-    Scope scope(URI file, String contents, int line, int character) {
-        recompile(file, contents, line, character);
+        // Search for the smallest element that encompasses line:column
+        class FindSmallest extends TreeScanner<Void, Void> {
+            Tree found = null;
 
-        Trees trees = Trees.instance(cache.task);
-        TreePath path = path(file, contents, line, character);
-        return trees.getScope(path);
+            boolean containsCursor(Tree tree) {
+                long start = pos.getStartPosition(cache.root, tree),
+                        end = pos.getEndPosition(cache.root, tree);
+                // If element has no position, give up
+                if (start == -1 || end == -1) return false;
+                // Check if `tree` contains line:column
+                return start <= cursor && cursor <= end;
+            }
+
+            @Override
+            public Void scan(Tree tree, Void nothing) {
+                // This is pre-order traversal, so the deepest element will be the last one remaining in `found`
+                if (containsCursor(tree)) found = tree;
+                super.scan(tree, nothing);
+                return null;
+            }
+
+            Optional<Tree> find(Tree root) {
+                scan(root, null);
+                return Optional.ofNullable(found);
+            }
+        }
+        Tree found =
+                new FindSmallest()
+                        .find(cache.root)
+                        .orElseThrow(
+                                () ->
+                                        new RuntimeException(
+                                                String.format(
+                                                        "No TreePath to %s %d:%d",
+                                                        file, line, character)));
+
+        return trees.getPath(cache.root, found);
     }
 
     /** Find all identifiers accessible from scope at line:character */
-    public List<Element> identifiers(URI file, String contents, int line, int character) {
+    public List<Element> scopeMembers(URI file, String contents, int line, int character) {
         recompile(file, contents, line, character);
 
+        Trees trees = Trees.instance(cache.task);
+        Types types = cache.task.getTypes();
+        TreePath path = path(file, contents, line, character);
+        Scope start = trees.getScope(path);
+
         class Walk {
-            Scope start = scope(file, contents, line, character);
-            Trees trees = Trees.instance(cache.task);
-            Types types = cache.task.getTypes();
             List<Element> result = new ArrayList<>();
 
             boolean isThisOrSuper(VariableElement ve) {
@@ -250,6 +239,7 @@ public class JavaPresentationCompiler {
                 for (Scope s = start; s != null; s = s.getEnclosingScope()) {
                     walkLocals(s);
                 }
+
                 return result;
             }
         }
@@ -260,12 +250,13 @@ public class JavaPresentationCompiler {
     public List<Element> members(URI file, String contents, int line, int character) {
         recompile(file, contents, line, character);
 
+        Trees trees = Trees.instance(cache.task);
+        Types types = cache.task.getTypes();
+        Elements elements = cache.task.getElements();
+        TreePath path = path(file, contents, line, character);
+        Scope scope = trees.getScope(path);
+
         class Walk {
-            Trees trees = Trees.instance(cache.task);
-            Types types = cache.task.getTypes();
-            Elements elements = cache.task.getElements();
-            TreePath path = path(file, contents, line, character);
-            Scope scope = trees.getScope(path);
             List<Element> result = new ArrayList<>();
 
             // Place each member of `t` into `results`
@@ -298,6 +289,7 @@ public class JavaPresentationCompiler {
                 // We need to add it to get members like .equals(other) and .hashCode()
                 // TODO this may add things twice for interfaces with no super-interfaces
                 walkType(elements.getTypeElement("java.lang.Object").asType());
+
                 return result;
             }
         }

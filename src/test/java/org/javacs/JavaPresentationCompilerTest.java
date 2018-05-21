@@ -19,7 +19,8 @@ import org.junit.Test;
 public class JavaPresentationCompilerTest {
     private static final Logger LOG = Logger.getLogger("main");
 
-    private JavaPresentationCompiler compiler = new JavaPresentationCompiler();
+    private JavaPresentationCompiler compiler =
+            new JavaPresentationCompiler(Collections.emptySet(), Collections.emptySet());
 
     private String contents(String resourceFile) {
         try (InputStream in =
@@ -50,17 +51,6 @@ public class JavaPresentationCompilerTest {
     }
 
     @Test
-    public void buildUpScope() {
-        String contents = contents("/BuildUpScope.java");
-        Scope a = compiler.scope(URI.create("/BuildUpScope.java"), contents, 3, 17);
-        assertThat(localElements(a), containsInAnyOrder("super", "this", "a"));
-        Scope b = compiler.scope(URI.create("/BuildUpScope.java"), contents, 4, 17);
-        assertThat(localElements(b), containsInAnyOrder("super", "this", "a", "b"));
-        Scope c = compiler.scope(URI.create("/BuildUpScope.java"), contents, 5, 17);
-        assertThat(localElements(c), containsInAnyOrder("super", "this", "a", "b", "c"));
-    }
-
-    @Test
     public void pruneMethods() {
         Pruner pruner =
                 new Pruner(URI.create("/PruneMethods.java"), contents("/PruneMethods.java"));
@@ -82,7 +72,7 @@ public class JavaPresentationCompilerTest {
     @Test
     public void identifiers() {
         List<Element> found =
-                compiler.identifiers(
+                compiler.scopeMembers(
                         URI.create("/CompleteIdentifiers.java"),
                         contents("/CompleteIdentifiers.java"),
                         13,
