@@ -6,10 +6,12 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.Charset;
-import java.nio.file.Path;
+import java.nio.file.*;
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.logging.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.lang.model.*;
 import javax.lang.model.element.*;
 import javax.lang.model.type.*;
@@ -311,6 +313,52 @@ public class JavaPresentationCompiler {
         Element e = trees.getElement(path);
         TreePath t = trees.getPath(e);
         return Optional.ofNullable(t);
+    }
+
+    private Stream<Path> javaSourcesInDir(Path dir) {
+        PathMatcher match = FileSystems.getDefault().getPathMatcher("glob:*.java");
+
+        try {
+            // TODO instead of looking at EVERY file, once you see a few files with the same source directory,
+            // ignore all subsequent files in the directory
+            return Files.walk(dir).filter(java -> match.matches(java.getFileName()));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private Stream<Path> javaSources() {
+        return sourcePath.stream().flatMap(dir -> javaSourcesInDir(dir));
+    }
+
+    private List<Path> potentialReferences(Element to) {
+        Predicate<Path> test = file -> {
+            return TODO();
+        };
+        return javaSources().filter(test).collect(Collectors.toList());
+    }
+
+    private List<CompilationUnitTree> compileBatch(List<Path> files) {
+        return TODO();
+    }
+
+    private List<TreePath> actualReferences(CompilationUnitTree from, Element to) {
+        return TODO();
+    }
+
+    public List<TreePath> references(URI file, String contents, int line, int character) {
+        recompile(file, contents, -1, -1);
+
+        Trees trees = Trees.instance(cache.task);
+        TreePath path = path(file, contents, line, character);
+        Element to = trees.getElement(path);
+        List<Path> possible = potentialReferences(to);
+        List<CompilationUnitTree> files = compileBatch(possible);
+        List<TreePath> result = new ArrayList<>();
+        for (CompilationUnitTree f : files) {
+            result.addAll(actualReferences(f, to));
+        }
+        return result;
     }
 
     public Trees trees() {

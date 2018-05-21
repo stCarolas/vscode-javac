@@ -126,4 +126,28 @@ public class JavaPresentationCompilerTest {
         long line = lines.getLineNumber(start);
         assertThat(line, equalTo(6L));
     }
+
+    @Test
+    public void references() {
+        List<TreePath> refs =
+                compiler.references(
+                        URI.create("/GotoDefinition.java"),
+                        contents("/GotoDefinition.java"),
+                        6,
+                        13);
+        boolean found = false;
+        for (TreePath t : refs) {
+            CompilationUnitTree unit = t.getCompilationUnit();
+            String name = unit.getSourceFile().getName();
+            Trees trees = compiler.trees();
+            SourcePositions pos = trees.getSourcePositions();
+            LineMap lines = unit.getLineMap();
+            long start = pos.getStartPosition(unit, t.getLeaf());
+            long line = lines.getLineNumber(start);
+            if (name.endsWith("GotoDefinition.java") && line == 3)
+                found = true;
+        }
+
+        if (!found) fail(String.format("No GotoDefinition.java line 3 in %s", found));
+    }
 }
