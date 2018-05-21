@@ -12,6 +12,7 @@ import java.util.logging.*;
 import javax.lang.model.*;
 import javax.lang.model.element.*;
 import javax.lang.model.type.*;
+import javax.lang.model.util.Types;
 import javax.tools.*;
 
 public class JavaPresentationCompiler {
@@ -154,12 +155,36 @@ public class JavaPresentationCompiler {
         recompile(file, contents, line, character);
 
         List<Element> result = new ArrayList<>();
-        Scope s = scope(file, contents, line, character);
-        while (s != null) {
+        Scope start = scope(file, contents, line, character);
+        Trees trees = Trees.instance(cache.task);
+        Types types = cache.task.getTypes();
+        for (Scope s = start; s != null; s = s.getEnclosingScope()) {
             for (Element e : s.getLocalElements()) {
-                result.add(e);
+                // Type names should only be included if they are accessible
+                if (e instanceof TypeElement) {
+                    TypeElement te = (TypeElement) e;
+                    if (trees.isAccessible(start, te)) result.add(te);
+                } else if (e instanceof VariableElement) {
+                    VariableElement ve = (VariableElement) e;
+                    String name = ve.getSimpleName().toString();
+                    if (name.equals("this") || name.equals("super")) {
+                        result.add(ve);
+                        // Unwrap `this` and `super`
+                        TypeMirror thisType = ve.asType();
+                        if (thisType instanceof DeclaredType) {
+                            DeclaredType thisDeclaredType = (DeclaredType) thisType;
+                            Element thisElement = types.asElement(thisDeclaredType);
+                            for (Element thisMember : thisElement.getEnclosedElements()) {
+                                if (trees.isAccessible(start, thisMember, thisDeclaredType)) {
+                                    result.add(thisMember);
+                                }
+                            }
+                        }
+                    } else result.add(ve);
+                } else {
+                    result.add(e);
+                }
             }
-            s = s.getEnclosingScope();
         }
         return result;
     }

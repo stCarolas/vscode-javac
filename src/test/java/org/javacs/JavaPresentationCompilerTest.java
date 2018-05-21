@@ -83,6 +83,10 @@ public class JavaPresentationCompilerTest {
         assertThat(names, hasItem("completeParam"));
         assertThat(names, hasItem("super"));
         assertThat(names, hasItem("this"));
+        assertThat(names, hasItem("completeOtherMethod"));
+        assertThat(names, hasItem("completeInnerField"));
+        assertThat(names, hasItem("completeOuterField"));
+        assertThat(names, hasItem("completeOuterStatic"));
         assertThat(names, hasItem("CompleteIdentifiers"));
     }
 }
