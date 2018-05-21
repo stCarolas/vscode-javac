@@ -10,8 +10,8 @@ import java.util.logging.Logger;
 import javax.tools.*;
 
 class Pruner {
-    // Parse-only compiler
     private static final Logger LOG = Logger.getLogger("main");
+    // Parse-only compiler
     private static final JavaCompiler COMPILER = ToolProvider.getSystemJavaCompiler();
     private static final StandardJavaFileManager FILE_MANAGER =
             COMPILER.getStandardFileManager(Pruner::report, null, Charset.defaultCharset());

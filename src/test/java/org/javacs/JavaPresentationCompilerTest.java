@@ -104,4 +104,26 @@ public class JavaPresentationCompilerTest {
         assertThat(names, hasItem("superMethod"));
         assertThat(names, hasItem("equals"));
     }
+
+    @Test
+    public void gotoDefinition() {
+        Optional<TreePath> def =
+                compiler.definition(
+                        URI.create("/GotoDefinition.java"),
+                        contents("/GotoDefinition.java"),
+                        3,
+                        12);
+        assertTrue(def.isPresent());
+
+        TreePath t = def.get();
+        CompilationUnitTree unit = t.getCompilationUnit();
+        assertThat(unit.getSourceFile().getName(), endsWith("GotoDefinition.java"));
+
+        Trees trees = compiler.trees();
+        SourcePositions pos = trees.getSourcePositions();
+        LineMap lines = unit.getLineMap();
+        long start = pos.getStartPosition(unit, t.getLeaf());
+        long line = lines.getLineNumber(start);
+        assertThat(line, equalTo(6L));
+    }
 }

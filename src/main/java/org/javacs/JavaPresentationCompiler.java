@@ -302,4 +302,18 @@ public class JavaPresentationCompiler {
         TreePath path = path(file, contents, line, character);
         return trees.getElement(path);
     }
+
+    public Optional<TreePath> definition(URI file, String contents, int line, int character) {
+        recompile(file, contents, -1, -1);
+
+        Trees trees = Trees.instance(cache.task);
+        TreePath path = path(file, contents, line, character);
+        Element e = trees.getElement(path);
+        TreePath t = trees.getPath(e);
+        return Optional.ofNullable(t);
+    }
+
+    public Trees trees() {
+        return Trees.instance(cache.task);
+    }
 }
