@@ -10,9 +10,10 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.logging.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.lang.model.*;
 import javax.lang.model.element.*;
 import javax.lang.model.type.*;
 import javax.lang.model.util.Elements;
@@ -79,6 +80,17 @@ public class JavaPresentationCompiler {
                         options(sourcePath, classPath),
                         Collections.emptyList(),
                         Collections.singletonList(new StringFileObject(contents, file)));
+    }
+
+    private JavacTask batchTask(List<File> files) {
+        return (JavacTask)
+                compiler.getTask(
+                        null,
+                        fileManager,
+                        JavaPresentationCompiler.this::report,
+                        options(sourcePath, classPath),
+                        Collections.emptyList(),
+                        fileManager.getJavaFileObjectsFromFiles(files));
     }
 
     /** Stores the compiled version of a single file */
@@ -323,20 +335,91 @@ public class JavaPresentationCompiler {
         return sourcePath.stream().flatMap(dir -> javaSourcesInDir(dir));
     }
 
-    private List<Path> potentialReferences(Element to) {
+    private List<File> potentialReferences(Element to) {
+        String name = to.getSimpleName().toString();
+        Pattern word = Pattern.compile("\\b\\w+\\b");
+        Predicate<String> containsWord =
+                line -> {
+                    Matcher m = word.matcher(line);
+                    while (m.find()) {
+                        if (m.group().equals(name)) return true;
+                    }
+                    return false;
+                };
         Predicate<Path> test =
                 file -> {
-                    return TODO();
+                    try {
+                        return Files.readAllLines(file).stream().anyMatch(containsWord);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
                 };
-        return javaSources().filter(test).collect(Collectors.toList());
+        return javaSources().filter(test).map(p -> p.toFile()).collect(Collectors.toList());
     }
 
-    private List<CompilationUnitTree> compileBatch(List<Path> files) {
-        return TODO();
+    /**
+     * Represents a batch compilation of many files. The batch context is different that the incremental context, so
+     * methods in this class should not access `cache`.
+     */
+    static class Batch {
+        final JavacTask task;
+        final List<CompilationUnitTree> roots;
+
+        Batch(JavacTask task, List<CompilationUnitTree> roots) {
+            this.task = task;
+            this.roots = roots;
+        }
+
+        private boolean toStringEquals(Object left, Object right) {
+            return Objects.equals(Objects.toString(left, ""), Objects.toString(right, ""));
+        }
+
+        private boolean sameSymbol(Element target, Element symbol) {
+            return symbol != null
+                    && target != null
+                    && toStringEquals(symbol.getEnclosingElement(), target.getEnclosingElement())
+                    && toStringEquals(symbol, target);
+        }
+
+        private List<TreePath> actualReferences(CompilationUnitTree from, Element to) {
+            Trees trees = Trees.instance(task);
+
+            class Finder extends TreeScanner<Void, Void> {
+                List<TreePath> results = new ArrayList<>();
+
+                @Override
+                public Void scan(Tree leaf, Void nothing) {
+                    if (leaf != null) {
+                        TreePath path = trees.getPath(from, leaf);
+                        Element found = trees.getElement(path);
+
+                        if (sameSymbol(found, to)) results.add(path);
+                        else super.scan(leaf, nothing);
+                    }
+                    return null;
+                }
+
+                List<TreePath> run() {
+                    scan(from, null);
+                    return results;
+                }
+            }
+            return new Finder().run();
+        }
     }
 
-    private List<TreePath> actualReferences(CompilationUnitTree from, Element to) {
-        return TODO();
+    private Batch compileBatch(List<File> files) {
+        JavacTask task = batchTask(files);
+
+        List<CompilationUnitTree> result = new ArrayList<>();
+        try {
+            for (CompilationUnitTree t : task.parse()) result.add(t);
+            task.analyze();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        return new Batch(task, result);
     }
 
     public List<TreePath> references(URI file, String contents, int line, int character) {
@@ -345,11 +428,11 @@ public class JavaPresentationCompiler {
         Trees trees = Trees.instance(cache.task);
         TreePath path = path(file, contents, line, character);
         Element to = trees.getElement(path);
-        List<Path> possible = potentialReferences(to);
-        List<CompilationUnitTree> files = compileBatch(possible);
+        List<File> possible = potentialReferences(to);
+        Batch batch = compileBatch(possible);
         List<TreePath> result = new ArrayList<>();
-        for (CompilationUnitTree f : files) {
-            result.addAll(actualReferences(f, to));
+        for (CompilationUnitTree f : batch.roots) {
+            result.addAll(batch.actualReferences(f, to));
         }
         return result;
     }

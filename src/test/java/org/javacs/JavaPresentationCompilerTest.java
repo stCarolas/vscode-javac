@@ -7,6 +7,9 @@ import com.sun.source.tree.*;
 import com.sun.source.util.*;
 import java.io.*;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.logging.*;
 import java.util.stream.Collectors;
@@ -20,7 +23,15 @@ public class JavaPresentationCompilerTest {
     private static final Logger LOG = Logger.getLogger("main");
 
     private JavaPresentationCompiler compiler =
-            new JavaPresentationCompiler(Collections.emptySet(), Collections.emptySet());
+            new JavaPresentationCompiler(Collections.singleton(resourcesDir()), Collections.emptySet());
+
+    private static Path resourcesDir() {
+        try {
+            return Paths.get(JavaPresentationCompilerTest.class.getResource("/HelloWorld.java").toURI()).getParent();
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     private String contents(String resourceFile) {
         try (InputStream in = JavaPresentationCompilerTest.class.getResourceAsStream(resourceFile)) {
@@ -122,6 +133,6 @@ public class JavaPresentationCompilerTest {
             if (name.endsWith("GotoDefinition.java") && line == 3) found = true;
         }
 
-        if (!found) fail(String.format("No GotoDefinition.java line 3 in %s", found));
+        if (!found) fail(String.format("No GotoDefinition.java line 3 in %s", refs));
     }
 }
