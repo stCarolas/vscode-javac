@@ -8,7 +8,7 @@ import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.file.*;
 import java.util.*;
-import java.util.function.Predicate;
+import java.util.function.*;
 import java.util.logging.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -250,27 +250,51 @@ public class JavaPresentationCompiler {
         return new Walk().walkScopes();
     }
 
+    private List<TypeMirror> supersWithSelf(TypeMirror t) {
+        Elements elements = cache.task.getElements();
+        Types types = cache.task.getTypes();
+        List<TypeMirror> result = new ArrayList<>();
+        result.add(t);
+        // Add members of superclasses and interfaces
+        result.addAll(types.directSupertypes(t));
+        // Object type is not included by default
+        // We need to add it to get members like .equals(other) and .hashCode()
+        // TODO this may add things twice for interfaces with no super-interfaces
+        result.add(elements.getTypeElement("java.lang.Object").asType());
+        return result;
+    }
+
     /** Find all members of expression ending at line:character */
     public List<Element> members(URI file, String contents, int line, int character) {
         recompile(file, contents, line, character);
 
         Trees trees = Trees.instance(cache.task);
         Types types = cache.task.getTypes();
-        Elements elements = cache.task.getElements();
         TreePath path = path(file, contents, line, character);
         Scope scope = trees.getScope(path);
+        Element element = trees.getElement(path);
 
-        class Walk {
+        if (element instanceof PackageElement) {
             List<Element> result = new ArrayList<>();
+            PackageElement p = (PackageElement) element;
 
-            // Place each member of `t` into `results`
-            void walkType(TypeMirror t) {
+            for (Element member : p.getEnclosedElements()) {
+                if (member instanceof TypeElement) {
+                    if (trees.isAccessible(scope, (TypeElement) member)) {
+                        result.add(member);
+                    }
+                } else result.add(member);
+            }
+            return result;
+        } else {
+            List<Element> result = new ArrayList<>();
+            List<TypeMirror> ts = supersWithSelf(element.asType());
+            for (TypeMirror t : ts) {
                 Element e = types.asElement(t);
                 for (Element member : e.getEnclosedElements()) {
                     // If type is a DeclaredType, check accessibility of member
                     if (t instanceof DeclaredType) {
-                        DeclaredType declaredType = (DeclaredType) t;
-                        if (trees.isAccessible(scope, member, declaredType)) {
+                        if (trees.isAccessible(scope, member, (DeclaredType) t)) {
                             result.add(member);
                         }
                     }
@@ -279,25 +303,8 @@ public class JavaPresentationCompiler {
                     else result.add(member);
                 }
             }
-
-            // Walk the type at `path` and each of its direct supertypes, placing members into `results`
-            List<Element> walkSupers() {
-                TypeMirror t = trees.getTypeMirror(path);
-                // Add all the direct members first
-                walkType(t);
-                // Add members of superclasses and interfaces
-                for (TypeMirror s : types.directSupertypes(t)) {
-                    walkType(s);
-                }
-                // Object type is not included by default
-                // We need to add it to get members like .equals(other) and .hashCode()
-                // TODO this may add things twice for interfaces with no super-interfaces
-                walkType(elements.getTypeElement("java.lang.Object").asType());
-
-                return result;
-            }
+            return result;
         }
-        return new Walk().walkSupers();
     }
 
     /**
