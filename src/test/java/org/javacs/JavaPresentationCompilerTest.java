@@ -135,4 +135,12 @@ public class JavaPresentationCompilerTest {
 
         if (!found) fail(String.format("No GotoDefinition.java line 3 in %s", refs));
     }
+
+    @Test
+    public void overloads() {
+        List<ExecutableElement> found =
+                compiler.overloads(URI.create("/Overloads.java"), contents("/Overloads.java"), 3, 15);
+
+        assertThat(found, containsInAnyOrder(hasToString("print(int)"), hasToString("print(java.lang.String)")));
+    }
 }

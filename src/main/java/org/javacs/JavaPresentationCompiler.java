@@ -300,6 +300,29 @@ public class JavaPresentationCompiler {
         return new Walk().walkSupers();
     }
 
+    /** Find all overloads for the smallest method call that includes the cursor */
+    public List<ExecutableElement> overloads(URI file, String contents, int line, int character) {
+        recompile(file, contents, line, character);
+
+        Trees trees = Trees.instance(cache.task);
+        TreePath start = path(file, contents, line, character);
+
+        for (TreePath path = start; path != null; path = path.getParentPath()) {
+            if (path.getLeaf() instanceof MethodInvocationTree) {
+                MethodInvocationTree invoke = (MethodInvocationTree) path.getLeaf();
+                Element method = trees.getElement(trees.getPath(path.getCompilationUnit(), invoke.getMethodSelect()));
+                List<ExecutableElement> results = new ArrayList<>();
+                for (Element m : method.getEnclosingElement().getEnclosedElements()) {
+                    if (m.getKind() == ElementKind.METHOD && m.getSimpleName().equals(method.getSimpleName())) {
+                        results.add((ExecutableElement) m);
+                    }
+                }
+                return results;
+            }
+        }
+        return Collections.emptyList();
+    }
+
     /** Find the smallest element that includes the cursor */
     public Element element(URI file, String contents, int line, int character) {
         recompile(file, contents, line, character);
