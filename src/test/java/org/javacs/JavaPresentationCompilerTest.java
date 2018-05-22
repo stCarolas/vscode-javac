@@ -90,9 +90,36 @@ public class JavaPresentationCompilerTest {
     }
 
     @Test
+    public void completeIdentifiers() {
+        List<Element> found =
+                compiler.completions(
+                        URI.create("/CompleteIdentifiers.java"), contents("/CompleteIdentifiers.java"), 13, 21);
+        List<String> names = found.stream().map(e -> e.getSimpleName().toString()).collect(Collectors.toList());
+        assertThat(names, hasItem("completeLocal"));
+        assertThat(names, hasItem("completeParam"));
+        assertThat(names, hasItem("super"));
+        assertThat(names, hasItem("this"));
+        assertThat(names, hasItem("completeOtherMethod"));
+        assertThat(names, hasItem("completeInnerField"));
+        assertThat(names, hasItem("completeOuterField"));
+        assertThat(names, hasItem("completeOuterStatic"));
+        assertThat(names, hasItem("CompleteIdentifiers"));
+    }
+
+    @Test
     public void members() {
         List<Element> found =
                 compiler.members(URI.create("/CompleteMembers.java"), contents("/CompleteMembers.java"), 3, 14);
+        List<String> names = found.stream().map(e -> e.getSimpleName().toString()).collect(Collectors.toList());
+        assertThat(names, hasItem("subMethod"));
+        assertThat(names, hasItem("superMethod"));
+        assertThat(names, hasItem("equals"));
+    }
+
+    @Test
+    public void completeMembers() {
+        List<Element> found =
+                compiler.completions(URI.create("/CompleteMembers.java"), contents("/CompleteMembers.java"), 3, 15);
         List<String> names = found.stream().map(e -> e.getSimpleName().toString()).collect(Collectors.toList());
         assertThat(names, hasItem("subMethod"));
         assertThat(names, hasItem("superMethod"));

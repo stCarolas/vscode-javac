@@ -300,6 +300,74 @@ public class JavaPresentationCompiler {
         return new Walk().walkSupers();
     }
 
+    /**
+     * Complete members or identifiers at the cursor. Delegates to `members` or `scopeMembers`, depending on whether the
+     * expression before the cursor looks like `foo.bar` or `foo`
+     */
+    public List<Element> completions(URI file, String contents, int line, int character) {
+        JavacTask task = singleFileTask(file, contents);
+        CompilationUnitTree parse;
+        try {
+            parse = task.parse().iterator().next();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        SourcePositions pos = Trees.instance(task).getSourcePositions();
+        LineMap lines = parse.getLineMap();
+        long cursor = lines.getPosition(line, character);
+
+        class Find extends TreeScanner<Void, Void> {
+            List<Element> result = null;
+
+            boolean containsCursor(Tree node) {
+                return pos.getStartPosition(parse, node) <= cursor && cursor <= pos.getEndPosition(parse, node);
+            }
+
+            @Override
+            public Void visitMemberSelect(MemberSelectTree node, Void nothing) {
+                super.visitMemberSelect(node, nothing);
+
+                if (containsCursor(node) && !containsCursor(node.getExpression()) && result == null) {
+                    long offset = pos.getEndPosition(parse, node.getExpression()),
+                            line = lines.getLineNumber(offset),
+                            column = lines.getColumnNumber(offset);
+                    result = members(file, contents, (int) line, (int) column);
+                }
+                return null;
+            }
+
+            @Override
+            public Void visitMemberReference(MemberReferenceTree node, Void nothing) {
+                super.visitMemberReference(node, nothing);
+
+                if (containsCursor(node) && !containsCursor(node.getQualifierExpression()) && result == null) {
+                    long offset = pos.getEndPosition(parse, node.getQualifierExpression()),
+                            line = lines.getLineNumber(offset),
+                            column = lines.getColumnNumber(offset);
+                    result = members(file, contents, (int) line, (int) column);
+                }
+                return null;
+            }
+
+            @Override
+            public Void visitIdentifier(IdentifierTree node, Void nothing) {
+                super.visitIdentifier(node, nothing);
+
+                if (containsCursor(node) && result == null) {
+                    result = scopeMembers(file, contents, line, character);
+                }
+                return null;
+            }
+
+            List<Element> run() {
+                scan(parse, null);
+                if (result != null) return result;
+                else return Collections.emptyList();
+            }
+        }
+        return new Find().run();
+    }
+
     /** Find all overloads for the smallest method call that includes the cursor */
     public List<ExecutableElement> overloads(URI file, String contents, int line, int character) {
         recompile(file, contents, line, character);
