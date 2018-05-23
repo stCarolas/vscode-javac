@@ -1,10 +1,15 @@
 package org.javacs;
 
+import com.google.common.base.StandardSystemProperty;
+import com.google.common.reflect.ClassPath;
 import com.sun.source.tree.*;
 import com.sun.source.util.*;
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.charset.Charset;
 import java.nio.file.*;
 import java.util.*;
@@ -25,6 +30,7 @@ public class JavaPresentationCompiler {
 
     // Not modifiable! If you want to edit these, you need to create a new instance
     private final Set<Path> sourcePath, classPath;
+    private final ClassPath classPathIndex;
     private final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
     // Use the same file manager for multiple tasks, so we don't repeatedly re-compile the same files
     private final StandardJavaFileManager fileManager =
@@ -37,6 +43,95 @@ public class JavaPresentationCompiler {
         // sourcePath and classPath can't actually be modified, because JavaCompiler remembers them from task to task
         this.sourcePath = Collections.unmodifiableSet(sourcePath);
         this.classPath = Collections.unmodifiableSet(classPath);
+        this.classPathIndex = createClassPath(classPath);
+    }
+
+    private static URL toUrl(Path path) {
+        try {
+            return path.toUri().toURL();
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /** Find all the java 8 platform .jar files */
+    private static URL[] java8Platform(String javaHome) {
+        Path rt = Paths.get(javaHome).resolve("lib").resolve("rt.jar");
+
+        if (Files.exists(rt)) {
+            URL[] result = {toUrl(rt)};
+            return result;
+        } else throw new RuntimeException(rt + " does not exist");
+    }
+
+    /** Find all the java 9 platform .jmod files */
+    private static URL[] java9Platform(String javaHome) {
+        Path jmods = Paths.get(javaHome).resolve("jmods");
+
+        try {
+            return Files.list(jmods)
+                    .filter(path -> path.getFileName().toString().endsWith(".jmod"))
+                    .map(path -> toUrl(path))
+                    .toArray(URL[]::new);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static boolean isJava9() {
+        return StandardSystemProperty.JAVA_VERSION.value().equals("9");
+    }
+
+    private static URL[] platform() {
+        if (isJava9()) return java9Platform(StandardSystemProperty.JAVA_HOME.value());
+        else return java8Platform(StandardSystemProperty.JAVA_HOME.value());
+    }
+
+    static URLClassLoader parentClassLoader() {
+        URL[] bootstrap = platform();
+
+        return new URLClassLoader(bootstrap, null);
+    }
+
+    private static ClassPath createClassPath(Set<Path> classPath) {
+        Function<Path, Stream<URL>> url =
+                p -> {
+                    try {
+                        return Stream.of(p.toUri().toURL());
+                    } catch (MalformedURLException e) {
+                        LOG.warning(e.getMessage());
+
+                        return Stream.empty();
+                    }
+                };
+        URL[] urls = classPath.stream().flatMap(url).toArray(URL[]::new);
+        URLClassLoader cl = new URLClassLoader(urls, parentClassLoader());
+        try {
+            return ClassPath.from(cl);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private String lastName(String p) {
+        int i = p.lastIndexOf('.');
+        if (i == -1) return p;
+        else return p.substring(i + 1);
+    }
+
+    private Set<String> subPackages(String parentPackage) {
+        Set<String> result = new HashSet<>();
+        for (ClassPath.ClassInfo c : classPathIndex.getTopLevelClasses()) {
+            String candidate = c.getPackageName();
+            if (candidate.startsWith(parentPackage) && candidate.length() > parentPackage.length()) {
+                int start = parentPackage.length() + 1;
+                int end = candidate.indexOf('.', start);
+                if (end == -1) end = candidate.length();
+                String prefix = candidate.substring(0, end);
+                result.add(prefix);
+            }
+        }
+        return result;
     }
 
     private void report(Diagnostic<? extends JavaFileObject> diags) {
@@ -265,7 +360,7 @@ public class JavaPresentationCompiler {
     }
 
     /** Find all members of expression ending at line:character */
-    public List<Element> members(URI file, String contents, int line, int character) {
+    public List<Completion> members(URI file, String contents, int line, int character) {
         recompile(file, contents, line, character);
 
         Trees trees = Trees.instance(cache.task);
@@ -275,19 +370,30 @@ public class JavaPresentationCompiler {
         Element element = trees.getElement(path);
 
         if (element instanceof PackageElement) {
-            List<Element> result = new ArrayList<>();
+            List<Completion> result = new ArrayList<>();
             PackageElement p = (PackageElement) element;
 
+            // Add class-names resolved as Element by javac
             for (Element member : p.getEnclosedElements()) {
+                // If the package member is a TypeElement, like a class or interface, check if it's accessible
                 if (member instanceof TypeElement) {
                     if (trees.isAccessible(scope, (TypeElement) member)) {
-                        result.add(member);
+                        result.add(Completion.ofElement(member));
                     }
-                } else result.add(member);
+                }
+                // Otherwise, just assume it's accessible and add it to the list
+                else result.add(Completion.ofElement(member));
             }
+            // Add sub-package names resolved as String by guava ClassPath
+            String parent = p.getQualifiedName().toString();
+            Set<String> subs = subPackages(parent);
+            for (String sub : subs) {
+                result.add(Completion.ofPackagePart(sub, lastName(sub)));
+            }
+
             return result;
         } else {
-            List<Element> result = new ArrayList<>();
+            List<Completion> result = new ArrayList<>();
             List<TypeMirror> ts = supersWithSelf(element.asType());
             for (TypeMirror t : ts) {
                 Element e = types.asElement(t);
@@ -295,12 +401,12 @@ public class JavaPresentationCompiler {
                     // If type is a DeclaredType, check accessibility of member
                     if (t instanceof DeclaredType) {
                         if (trees.isAccessible(scope, member, (DeclaredType) t)) {
-                            result.add(member);
+                            result.add(Completion.ofElement(member));
                         }
                     }
                     // Otherwise, accessibility rules are very complicated
                     // Give up and just declare that everything is accessible
-                    else result.add(member);
+                    else result.add(Completion.ofElement(member));
                 }
             }
             return result;
@@ -311,7 +417,7 @@ public class JavaPresentationCompiler {
      * Complete members or identifiers at the cursor. Delegates to `members` or `scopeMembers`, depending on whether the
      * expression before the cursor looks like `foo.bar` or `foo`
      */
-    public List<Element> completions(URI file, String contents, int line, int character) {
+    public List<Completion> completions(URI file, String contents, int line, int character) {
         JavacTask task = singleFileTask(file, contents);
         CompilationUnitTree parse;
         try {
@@ -324,7 +430,7 @@ public class JavaPresentationCompiler {
         long cursor = lines.getPosition(line, character);
 
         class Find extends TreeScanner<Void, Void> {
-            List<Element> result = null;
+            List<Completion> result = null;
 
             boolean containsCursor(Tree node) {
                 return pos.getStartPosition(parse, node) <= cursor && cursor <= pos.getEndPosition(parse, node);
@@ -361,12 +467,15 @@ public class JavaPresentationCompiler {
                 super.visitIdentifier(node, nothing);
 
                 if (containsCursor(node) && result == null) {
-                    result = scopeMembers(file, contents, line, character);
+                    result = new ArrayList<>();
+                    for (Element m : scopeMembers(file, contents, line, character)) {
+                        result.add(Completion.ofElement(m));
+                    }
                 }
                 return null;
             }
 
-            List<Element> run() {
+            List<Completion> run() {
                 scan(parse, null);
                 if (result != null) return result;
                 else return Collections.emptyList();

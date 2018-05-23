@@ -64,6 +64,15 @@ public class JavaPresentationCompilerTest {
         assertThat(pruner.contents(), equalToIgnoringWhiteSpace(expected));
     }
 
+    private List<String> completionNames(List<Completion> found) {
+        List<String> result = new ArrayList<>();
+        for (Completion c : found) {
+            if (c.element != null) result.add(c.element.getSimpleName().toString());
+            else if (c.packagePart != null) result.add(c.packagePart.name);
+        }
+        return result;
+    }
+
     private List<String> elementNames(List<Element> found) {
         return found.stream().map(e -> e.getSimpleName().toString()).collect(Collectors.toList());
     }
@@ -87,10 +96,10 @@ public class JavaPresentationCompilerTest {
 
     @Test
     public void completeIdentifiers() {
-        List<Element> found =
+        List<Completion> found =
                 compiler.completions(
                         URI.create("/CompleteIdentifiers.java"), contents("/CompleteIdentifiers.java"), 13, 21);
-        List<String> names = elementNames(found);
+        List<String> names = completionNames(found);
         assertThat(names, hasItem("completeLocal"));
         assertThat(names, hasItem("completeParam"));
         assertThat(names, hasItem("super"));
@@ -104,9 +113,9 @@ public class JavaPresentationCompilerTest {
 
     @Test
     public void members() {
-        List<Element> found =
+        List<Completion> found =
                 compiler.members(URI.create("/CompleteMembers.java"), contents("/CompleteMembers.java"), 3, 14);
-        List<String> names = elementNames(found);
+        List<String> names = completionNames(found);
         assertThat(names, hasItem("subMethod"));
         assertThat(names, hasItem("superMethod"));
         assertThat(names, hasItem("equals"));
@@ -114,9 +123,9 @@ public class JavaPresentationCompilerTest {
 
     @Test
     public void completeMembers() {
-        List<Element> found =
+        List<Completion> found =
                 compiler.completions(URI.create("/CompleteMembers.java"), contents("/CompleteMembers.java"), 3, 15);
-        List<String> names = elementNames(found);
+        List<String> names = completionNames(found);
         assertThat(names, hasItem("subMethod"));
         assertThat(names, hasItem("superMethod"));
         assertThat(names, hasItem("equals"));
@@ -124,14 +133,11 @@ public class JavaPresentationCompilerTest {
 
     @Test
     public void completeImports() {
-        List<Element> found =
+        List<Completion> found =
                 compiler.completions(URI.create("/CompleteImports.java"), contents("/CompleteImports.java"), 1, 18);
-        List<String> names = elementNames(found);
+        List<String> names = completionNames(found);
         assertThat(names, hasItem("List"));
-
-        found = compiler.completions(URI.create("/CompleteImports.java"), contents("/CompleteImports.java"), 1, 13);
-        names = elementNames(found);
-        assertThat(names, hasItem("util"));
+        assertThat(names, hasItem("concurrent"));
     }
 
     @Test
