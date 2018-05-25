@@ -14,7 +14,8 @@ public class SymbolUnderCursorTest {
 
     @Test
     public void classDeclaration() {
-        assertEquals("SymbolUnderCursor", symbolAt("/org/javacs/example/SymbolUnderCursor.java", 3, 22));
+        assertEquals(
+                "org.javacs.example.SymbolUnderCursor", symbolAt("/org/javacs/example/SymbolUnderCursor.java", 3, 22));
     }
 
     @Test
@@ -24,7 +25,7 @@ public class SymbolUnderCursorTest {
 
     @Test
     public void methodDeclaration() {
-        assertEquals("method", symbolAt("/org/javacs/example/SymbolUnderCursor.java", 6, 22));
+        assertEquals("method(java.lang.String)", symbolAt("/org/javacs/example/SymbolUnderCursor.java", 6, 22));
     }
 
     @Test
@@ -44,7 +45,8 @@ public class SymbolUnderCursorTest {
 
     @Test
     public void classIdentifier() {
-        assertEquals("SymbolUnderCursor", symbolAt("/org/javacs/example/SymbolUnderCursor.java", 12, 23));
+        assertEquals(
+                "org.javacs.example.SymbolUnderCursor", symbolAt("/org/javacs/example/SymbolUnderCursor.java", 12, 23));
     }
 
     @Test
@@ -54,12 +56,12 @@ public class SymbolUnderCursorTest {
 
     @Test
     public void methodIdentifier() {
-        assertEquals("method", symbolAt("/org/javacs/example/SymbolUnderCursor.java", 12, 12));
+        assertEquals("method(java.lang.String)", symbolAt("/org/javacs/example/SymbolUnderCursor.java", 12, 12));
     }
 
     @Test
     public void methodSelect() {
-        assertEquals("method", symbolAt("/org/javacs/example/SymbolUnderCursor.java", 13, 17));
+        assertEquals("method(java.lang.String)", symbolAt("/org/javacs/example/SymbolUnderCursor.java", 13, 17));
     }
 
     @Ignore // tree.sym is null
@@ -85,7 +87,8 @@ public class SymbolUnderCursorTest {
     private String symbolAt(String file, int line, int character) {
         TextDocumentPositionParams pos =
                 new TextDocumentPositionParams(
-                        new TextDocumentIdentifier(FindResource.uri(file).toString()), new Position(line, character));
+                        new TextDocumentIdentifier(FindResource.uri(file).toString()),
+                        new Position(line - 1, character - 1));
         StringJoiner result = new StringJoiner("\n");
         try {
             server.getTextDocumentService()

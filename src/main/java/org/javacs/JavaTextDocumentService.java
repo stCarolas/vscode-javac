@@ -65,8 +65,8 @@ class JavaTextDocumentService implements TextDocumentService {
         int line = position.getPosition().getLine() + 1;
         int column = position.getPosition().getCharacter() + 1;
         Element e = server.compiler.element(uri, content, line, column);
-        if (e != null && e.asType() != null) {
-            MarkedString hover = new MarkedString("java", e.asType().toString());
+        if (e != null) {
+            MarkedString hover = new MarkedString("java", e.toString());
             Hover result = new Hover(Collections.singletonList(Either.forRight(hover)));
             return CompletableFuture.completedFuture(result);
         } else return CompletableFuture.completedFuture(new Hover(Collections.emptyList()));
