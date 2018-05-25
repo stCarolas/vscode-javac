@@ -4,7 +4,6 @@ import com.google.common.collect.ImmutableList;
 import java.net.URI;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
@@ -70,27 +69,5 @@ class JavaLanguageServer implements LanguageServer {
 
     void installClient(LanguageClient client) {
         this.client = client;
-    }
-
-    static void onDiagnostic(Diagnostic<? extends JavaFileObject> diagnostic) {
-        Level level = level(diagnostic.getKind());
-        String message = diagnostic.getMessage(null);
-
-        LOG.log(level, message);
-    }
-
-    private static Level level(Diagnostic.Kind kind) {
-        switch (kind) {
-            case ERROR:
-                return Level.SEVERE;
-            case WARNING:
-            case MANDATORY_WARNING:
-                return Level.WARNING;
-            case NOTE:
-                return Level.INFO;
-            case OTHER:
-            default:
-                return Level.FINE;
-        }
     }
 }

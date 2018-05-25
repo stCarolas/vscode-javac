@@ -3,7 +3,6 @@ package org.javacs;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertThat;
 
-import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -21,91 +20,91 @@ public class GotoTest {
     private static final URI defaultConstructorUri = FindResource.uri(defaultConstructorFile);
 
     @Test
-    public void localVariable() throws IOException {
+    public void localVariable() {
         List<? extends Location> suggestions = doGoto(file, 9, 8);
 
-        assertThat(suggestions, contains(location(uri, 4, 15, 4, 20)));
+        assertThat(suggestions, contains(location(uri, 4, 8, 4, 21)));
     }
 
     @Test
-    public void defaultConstructor() throws IOException {
+    public void defaultConstructor() {
         List<? extends Location> suggestions = doGoto(defaultConstructorFile, 4, 45);
 
-        assertThat(suggestions, contains(location(defaultConstructorUri, 2, 13, 2, 35)));
+        assertThat(suggestions, contains(location(defaultConstructorUri, 2, 0, 6, 1)));
     }
 
     @Test
-    public void constructor() throws IOException {
+    public void constructor() {
         List<? extends Location> suggestions = doGoto(file, 10, 20);
 
-        assertThat(suggestions, contains(location(uri, 43, 11, 43, 15)));
+        assertThat(suggestions, contains(location(uri, 2, 0, 47, 1)));
     }
 
     @Test
-    public void className() throws IOException {
+    public void className() {
         List<? extends Location> suggestions = doGoto(file, 15, 8);
 
-        assertThat(suggestions, contains(location(uri, 2, 13, 2, 17)));
+        assertThat(suggestions, contains(location(uri, 2, 0, 47, 1)));
     }
 
     @Test
-    public void staticField() throws IOException {
+    public void staticField() {
         List<? extends Location> suggestions = doGoto(file, 12, 21);
 
-        assertThat(suggestions, contains(location(uri, 35, 25, 35, 36)));
+        assertThat(suggestions, contains(location(uri, 35, 4, 35, 37)));
     }
 
     @Test
-    public void field() throws IOException {
+    public void field() {
         List<? extends Location> suggestions = doGoto(file, 13, 21);
 
-        assertThat(suggestions, contains(location(uri, 36, 18, 36, 23)));
+        assertThat(suggestions, contains(location(uri, 36, 4, 36, 24)));
     }
 
     @Test
-    public void staticMethod() throws IOException {
+    public void staticMethod() {
         List<? extends Location> suggestions = doGoto(file, 15, 13);
 
-        assertThat(suggestions, contains(location(uri, 37, 25, 37, 37)));
+        assertThat(suggestions, contains(location(uri, 37, 4, 39, 5)));
     }
 
     @Test
-    public void method() throws IOException {
+    public void method() {
         List<? extends Location> suggestions = doGoto(file, 16, 13);
 
-        assertThat(suggestions, contains(location(uri, 40, 18, 40, 24)));
+        assertThat(suggestions, contains(location(uri, 40, 4, 42, 5)));
     }
 
     @Test
-    public void staticMethodReference() throws IOException {
+    public void staticMethodReference() {
         List<? extends Location> suggestions = doGoto(file, 18, 26);
 
-        assertThat(suggestions, contains(location(uri, 37, 25, 37, 37)));
+        assertThat(suggestions, contains(location(uri, 37, 4, 39, 5)));
     }
 
     @Test
-    public void methodReference() throws IOException {
+    public void methodReference() {
         List<? extends Location> suggestions = doGoto(file, 19, 26);
 
-        assertThat(suggestions, contains(location(uri, 40, 18, 40, 24)));
+        assertThat(suggestions, contains(location(uri, 40, 4, 42, 5)));
     }
 
     @Test
-    public void otherStaticMethod() throws IOException {
+    public void otherStaticMethod() {
         List<? extends Location> suggestions = doGoto(file, 28, 24);
 
         assertThat(suggestions, contains(hasProperty("uri", equalTo(other.toString()))));
     }
 
     @Test
-    public void otherMethod() throws IOException {
+    public void otherMethod() {
         List<? extends Location> suggestions = doGoto(file, 29, 17);
 
         assertThat(suggestions, contains(hasProperty("uri", equalTo(other.toString()))));
     }
 
     @Test
-    public void otherCompiledFile() throws IOException {
+    public void otherCompiledFile() {
         List<? extends Location> suggestions = doGoto(file, 28, 24);
 
         assertThat(suggestions, contains(hasProperty("uri", equalTo(other.toString()))));
@@ -113,14 +112,14 @@ public class GotoTest {
 
     @Test
     @Ignore // TODO
-    public void typeParam() throws IOException {
+    public void typeParam() {
         List<? extends Location> suggestions = doGoto(file, 45, 11);
 
         assertThat(suggestions, contains(location(uri, 2, 18, 2, 23)));
     }
 
     @Test
-    public void gotoEnum() throws IOException {
+    public void gotoEnum() {
         String file = "/org/javacs/example/GotoEnum.java";
 
         assertThat(doGoto(file, 5, 30), not(empty()));
@@ -129,22 +128,18 @@ public class GotoTest {
 
     private Location location(URI uri, int startRow, int startColumn, int endRow, int endColumn) {
         Position start = new Position();
-
         start.setLine(startRow);
         start.setCharacter(startColumn);
 
         Position end = new Position();
-
-        end.setLine(startRow);
+        end.setLine(endRow);
         end.setCharacter(endColumn);
 
         Range range = new Range();
-
         range.setStart(start);
         range.setEnd(end);
 
         Location location = new Location();
-
         location.setUri(uri.toString());
         location.setRange(range);
 
@@ -153,7 +148,7 @@ public class GotoTest {
 
     private static final JavaLanguageServer server = LanguageServerFixture.getJavaLanguageServer();
 
-    private List<? extends Location> doGoto(String file, int row, int column) throws IOException {
+    private List<? extends Location> doGoto(String file, int row, int column) {
         TextDocumentIdentifier document = new TextDocumentIdentifier();
 
         document.setUri(FindResource.uri(file).toString());

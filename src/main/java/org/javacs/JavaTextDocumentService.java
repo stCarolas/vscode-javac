@@ -44,7 +44,7 @@ class JavaTextDocumentService implements TextDocumentService {
         URI uri = URI.create(position.getTextDocument().getUri());
         String content = contents(uri).content;
         int line = position.getPosition().getLine() + 1;
-        int column = position.getPosition().getCharacter();
+        int column = position.getPosition().getCharacter() + 1;
         List<CompletionItem> result = new ArrayList<>();
         for (Completion c : server.compiler.completions(uri, content, line, column)) {
             CompletionItem i = new CompletionItem();
@@ -70,7 +70,7 @@ class JavaTextDocumentService implements TextDocumentService {
         URI uri = URI.create(position.getTextDocument().getUri());
         String content = contents(uri).content;
         int line = position.getPosition().getLine() + 1;
-        int column = position.getPosition().getCharacter();
+        int column = position.getPosition().getCharacter() + 1;
         Element e = server.compiler.element(uri, content, line, column);
         if (e != null && e.asType() != null) {
             MarkedString hover = new MarkedString("java", e.asType().toString());
@@ -84,7 +84,7 @@ class JavaTextDocumentService implements TextDocumentService {
         URI uri = URI.create(position.getTextDocument().getUri());
         String content = contents(uri).content;
         int line = position.getPosition().getLine() + 1;
-        int column = position.getPosition().getCharacter();
+        int column = position.getPosition().getCharacter() + 1;
         List<SignatureInformation> result = new ArrayList<>();
         for (ExecutableElement e : server.compiler.overloads(uri, content, line, column)) {
             SignatureInformation i = new SignatureInformation();
@@ -109,8 +109,8 @@ class JavaTextDocumentService implements TextDocumentService {
         CompilationUnitTree cu = p.getCompilationUnit();
         LineMap lines = cu.getLineMap();
         long start = pos.getStartPosition(cu, p.getLeaf()), end = pos.getEndPosition(cu, p.getLeaf());
-        int startLine = (int) lines.getLineNumber(start) - 1, startCol = (int) lines.getColumnNumber(start);
-        int endLine = (int) lines.getLineNumber(end) - 1, endCol = (int) lines.getColumnNumber(end);
+        int startLine = (int) lines.getLineNumber(start) - 1, startCol = (int) lines.getColumnNumber(start) - 1;
+        int endLine = (int) lines.getLineNumber(end) - 1, endCol = (int) lines.getColumnNumber(end) - 1;
         URI dUri = cu.getSourceFile().toUri();
         return new Location(
                 dUri.toString(), new Range(new Position(startLine, startCol), new Position(endLine, endCol)));
@@ -121,7 +121,7 @@ class JavaTextDocumentService implements TextDocumentService {
         URI uri = URI.create(position.getTextDocument().getUri());
         String content = contents(uri).content;
         int line = position.getPosition().getLine() + 1;
-        int column = position.getPosition().getCharacter();
+        int column = position.getPosition().getCharacter() + 1;
         List<Location> result = new ArrayList<>();
         server.compiler
                 .definition(uri, content, line, column)
@@ -137,7 +137,7 @@ class JavaTextDocumentService implements TextDocumentService {
         URI uri = URI.create(position.getTextDocument().getUri());
         String content = contents(uri).content;
         int line = position.getPosition().getLine() + 1;
-        int column = position.getPosition().getCharacter();
+        int column = position.getPosition().getCharacter() + 1;
         List<Location> result = new ArrayList<>();
         for (TreePath r : server.compiler.references(uri, content, line, column)) {
             result.add(location(r));

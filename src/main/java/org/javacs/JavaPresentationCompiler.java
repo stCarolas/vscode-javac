@@ -236,12 +236,8 @@ public class JavaPresentationCompiler {
         }
     }
 
-    private static <T> T TODO() {
-        throw new UnsupportedOperationException("TODO");
-    }
-
     /** Find the smallest tree that includes the cursor */
-    private TreePath path(URI file, String contents, int line, int character) {
+    private TreePath path(URI file, int line, int character) {
         Trees trees = Trees.instance(cache.task);
         SourcePositions pos = trees.getSourcePositions();
         long cursor = cache.root.getLineMap().getPosition(line, character);
@@ -288,7 +284,7 @@ public class JavaPresentationCompiler {
 
         Trees trees = Trees.instance(cache.task);
         Types types = cache.task.getTypes();
-        TreePath path = path(file, contents, line, character);
+        TreePath path = path(file, line, character);
         Scope start = trees.getScope(path);
 
         class Walk {
@@ -367,7 +363,7 @@ public class JavaPresentationCompiler {
 
         Trees trees = Trees.instance(cache.task);
         Types types = cache.task.getTypes();
-        TreePath path = path(file, contents, line, character);
+        TreePath path = path(file, line, character);
         Scope scope = trees.getScope(path);
         Element element = trees.getElement(path);
 
@@ -491,7 +487,7 @@ public class JavaPresentationCompiler {
         recompile(file, contents, line, character);
 
         Trees trees = Trees.instance(cache.task);
-        TreePath start = path(file, contents, line, character);
+        TreePath start = path(file, line, character);
 
         for (TreePath path = start; path != null; path = path.getParentPath()) {
             if (path.getLeaf() instanceof MethodInvocationTree) {
@@ -514,7 +510,7 @@ public class JavaPresentationCompiler {
         recompile(file, contents, line, character);
 
         Trees trees = Trees.instance(cache.task);
-        TreePath path = path(file, contents, line, character);
+        TreePath path = path(file, line, character);
         return trees.getElement(path);
     }
 
@@ -522,7 +518,7 @@ public class JavaPresentationCompiler {
         recompile(file, contents, -1, -1);
 
         Trees trees = Trees.instance(cache.task);
-        TreePath path = path(file, contents, line, character);
+        TreePath path = path(file, line, character);
         Element e = trees.getElement(path);
         TreePath t = trees.getPath(e);
         return Optional.ofNullable(t);
@@ -635,7 +631,7 @@ public class JavaPresentationCompiler {
         recompile(file, contents, -1, -1);
 
         Trees trees = Trees.instance(cache.task);
-        TreePath path = path(file, contents, line, character);
+        TreePath path = path(file, line, character);
         Element to = trees.getElement(path);
         List<File> possible = potentialReferences(to);
         Batch batch = compileBatch(possible);

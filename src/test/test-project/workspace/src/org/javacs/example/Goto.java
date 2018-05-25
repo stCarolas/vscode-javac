@@ -1,7 +1,7 @@
 package org.javacs.example;
 
 public class Goto<Param> {
-    public static void test() {
+    public void test() {
         Object local;
         Runnable reference;
         GotoOther other;
