@@ -11,9 +11,12 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.VariableElement;
@@ -270,8 +273,15 @@ class JavaTextDocumentService implements TextDocumentService {
     }
 
     VersionedContent contents(URI openFile) {
-        if (activeDocuments.containsKey(openFile)) return activeDocuments.get(openFile);
-        else throw new RuntimeException("TODO read file from disk");
+        if (activeDocuments.containsKey(openFile)) {
+            return activeDocuments.get(openFile);
+        } else
+            try {
+                String content = Files.readAllLines(Paths.get(openFile)).stream().collect(Collectors.joining("\n"));
+                return new VersionedContent(content, -1);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
     }
 
     private static final Logger LOG = Logger.getLogger("main");
