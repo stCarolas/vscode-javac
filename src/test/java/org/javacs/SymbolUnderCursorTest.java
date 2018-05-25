@@ -2,8 +2,11 @@ package org.javacs;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.Optional;
-import javax.lang.model.element.Element;
+import java.util.StringJoiner;
+import java.util.concurrent.ExecutionException;
+import org.eclipse.lsp4j.Position;
+import org.eclipse.lsp4j.TextDocumentIdentifier;
+import org.eclipse.lsp4j.TextDocumentPositionParams;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -80,8 +83,19 @@ public class SymbolUnderCursorTest {
     private static final JavaLanguageServer server = LanguageServerFixture.getJavaLanguageServer();
 
     private String symbolAt(String file, int line, int character) {
-        Optional<Element> symbol = server.findSymbol(FindResource.uri(file), line, character);
-
-        return symbol.map(s -> s.getSimpleName().toString()).orElse(null);
+        TextDocumentPositionParams pos =
+                new TextDocumentPositionParams(
+                        new TextDocumentIdentifier(FindResource.uri(file).toString()), new Position(line, character));
+        StringJoiner result = new StringJoiner("\n");
+        try {
+            server.getTextDocumentService()
+                    .hover(pos)
+                    .get()
+                    .getContents()
+                    .forEach(hover -> result.add(hover.getRight().getValue()));
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException(e);
+        }
+        return result.toString();
     }
 }

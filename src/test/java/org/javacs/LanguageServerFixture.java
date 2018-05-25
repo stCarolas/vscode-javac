@@ -55,8 +55,6 @@ class LanguageServerFixture {
         server.initialize(init);
         server.installClient(client);
 
-        server.maxItems = 100;
-
         return server;
     }
 

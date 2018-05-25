@@ -106,8 +106,6 @@ public class GotoTest {
 
     @Test
     public void otherCompiledFile() throws IOException {
-        server.compile(other);
-
         List<? extends Location> suggestions = doGoto(file, 28, 24);
 
         assertThat(suggestions, contains(hasProperty("uri", equalTo(other.toString()))));

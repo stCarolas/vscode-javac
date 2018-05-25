@@ -84,7 +84,7 @@ public class CompletionsBase {
         URI uri = FindResource.uri(file);
         TextDocumentPositionParams position =
                 new TextDocumentPositionParams(
-                        new TextDocumentIdentifier(uri.toString()), uri.toString(), new Position(row - 1, column - 1));
+                        new TextDocumentIdentifier(uri.toString()), new Position(row - 1, column - 1));
 
         try {
             return server.getTextDocumentService().completion(position).get().getRight().getItems();
