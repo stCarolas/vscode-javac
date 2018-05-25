@@ -3,7 +3,6 @@ package org.javacs;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertThat;
 
-import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Paths;
 import java.util.Collections;
@@ -22,7 +21,7 @@ public class LinterTest {
                     Collections.singleton(Paths.get("src/test/test-project/workspace/src")), Collections.emptySet());
 
     @Test
-    public void compile() throws IOException {
+    public void compile() {
         URI file = FindResource.uri("/org/javacs/example/HelloWorld.java");
         DiagnosticCollector<JavaFileObject> errors =
                 compiler.compileBatch(Collections.singletonMap(file, Optional.empty()));
@@ -31,7 +30,7 @@ public class LinterTest {
     }
 
     @Test
-    public void missingMethodBody() throws IOException {
+    public void missingMethodBody() {
         URI file = FindResource.uri("/org/javacs/example/MissingMethodBody.java");
         DiagnosticCollector<JavaFileObject> compile =
                 compiler.compileBatch(Collections.singletonMap(file, Optional.empty()));
@@ -40,7 +39,7 @@ public class LinterTest {
     }
 
     @Test
-    public void incompleteAssignment() throws IOException {
+    public void incompleteAssignment() {
         URI file = FindResource.uri("/org/javacs/example/IncompleteAssignment.java");
         DiagnosticCollector<JavaFileObject> compile =
                 compiler.compileBatch(Collections.singletonMap(file, Optional.empty()));
@@ -49,7 +48,7 @@ public class LinterTest {
     }
 
     @Test
-    public void undefinedSymbol() throws IOException {
+    public void undefinedSymbol() {
         URI file = FindResource.uri("/org/javacs/example/UndefinedSymbol.java");
         DiagnosticCollector<JavaFileObject> compile =
                 compiler.compileBatch(Collections.singletonMap(file, Optional.empty()));

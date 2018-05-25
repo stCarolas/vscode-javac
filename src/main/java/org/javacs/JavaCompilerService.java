@@ -34,9 +34,11 @@ public class JavaCompilerService {
     private final Set<Path> sourcePath, classPath;
     private final ClassPath classPathIndex;
     private final JavaCompiler compiler = JavacTool.create(); // TODO switch to java 9 mechanism
+    // Diagnostics from the last compilation task
+    private final List<Diagnostic<? extends JavaFileObject>> diags = new ArrayList<>();
     // Use the same file manager for multiple tasks, so we don't repeatedly re-compile the same files
     private final StandardJavaFileManager fileManager =
-            compiler.getStandardFileManager(this::report, null, Charset.defaultCharset());
+            compiler.getStandardFileManager(diags::add, null, Charset.defaultCharset());
     // Cache a single compiled file
     // Since the user can only edit one file at a time, this should be sufficient
     private Cache cache;
@@ -136,10 +138,6 @@ public class JavaCompilerService {
         return result;
     }
 
-    private void report(Diagnostic<? extends JavaFileObject> diags) {
-        LOG.warning(diags.getMessage(null));
-    }
-
     /** Combine source path or class path entries using the system separator, for example ':' in unix */
     private static String joinPath(Collection<Path> classOrSourcePath) {
         return classOrSourcePath.stream().map(p -> p.toString()).collect(Collectors.joining(File.pathSeparator));
@@ -169,25 +167,41 @@ public class JavaCompilerService {
 
     /** Create a task that compiles a single file */
     private JavacTask singleFileTask(URI file, String contents) {
+        diags.clear();
         return (JavacTask)
                 compiler.getTask(
                         null,
                         fileManager,
-                        JavaCompilerService.this::report,
+                        diags::add,
                         options(sourcePath, classPath),
                         Collections.emptyList(),
                         Collections.singletonList(new StringFileObject(contents, file)));
     }
 
-    private JavacTask batchTask(List<File> files) {
+    private JavacTask batchTask(Collection<URI> paths) {
+        diags.clear();
+        List<File> files = paths.stream().map(f -> Paths.get(f).toFile()).collect(Collectors.toList());
         return (JavacTask)
                 compiler.getTask(
                         null,
                         fileManager,
-                        JavaCompilerService.this::report,
+                        diags::add,
                         options(sourcePath, classPath),
                         Collections.emptyList(),
                         fileManager.getJavaFileObjectsFromFiles(files));
+    }
+
+    List<Diagnostic<? extends JavaFileObject>> lint(Collection<URI> files) {
+        JavacTask task = batchTask(files);
+        try {
+            task.parse();
+            task.analyze();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        List<Diagnostic<? extends JavaFileObject>> copy = new ArrayList<>();
+        Collections.copy(diags, copy);
+        return Collections.unmodifiableList(copy);
     }
 
     /** Stores the compiled version of a single file */
@@ -540,7 +554,7 @@ public class JavaCompilerService {
         return sourcePath.stream().flatMap(dir -> javaSourcesInDir(dir));
     }
 
-    private List<File> potentialReferences(Element to) {
+    private List<URI> potentialReferences(Element to) {
         String name = to.getSimpleName().toString();
         Pattern word = Pattern.compile("\\b\\w+\\b");
         Predicate<String> containsWord =
@@ -559,7 +573,7 @@ public class JavaCompilerService {
                         throw new RuntimeException(e);
                     }
                 };
-        return javaSources().filter(test).map(p -> p.toFile()).collect(Collectors.toList());
+        return javaSources().filter(test).map(p -> p.toUri()).collect(Collectors.toList());
     }
 
     /**
@@ -613,7 +627,7 @@ public class JavaCompilerService {
         }
     }
 
-    private Batch compileBatch(List<File> files) {
+    private Batch compileBatch(List<URI> files) {
         JavacTask task = batchTask(files);
 
         List<CompilationUnitTree> result = new ArrayList<>();
@@ -633,7 +647,7 @@ public class JavaCompilerService {
         Trees trees = Trees.instance(cache.task);
         TreePath path = path(file, line, character);
         Element to = trees.getElement(path);
-        List<File> possible = potentialReferences(to);
+        List<URI> possible = potentialReferences(to);
         Batch batch = compileBatch(possible);
         List<TreePath> result = new ArrayList<>();
         for (CompilationUnitTree f : batch.roots) {

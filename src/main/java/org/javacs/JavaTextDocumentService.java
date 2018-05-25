@@ -1,6 +1,5 @@
 package org.javacs;
 
-import com.google.common.base.Joiner;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.LineMap;
 import com.sun.source.util.SourcePositions;
@@ -30,12 +29,6 @@ class JavaTextDocumentService implements TextDocumentService {
 
     JavaTextDocumentService(JavaLanguageServer server) {
         this.server = server;
-    }
-
-    void doLint(Collection<URI> paths) {
-        LOG.info("Lint " + Joiner.on(", ").join(paths));
-
-        // TODO
     }
 
     @Override
@@ -197,7 +190,7 @@ class JavaTextDocumentService implements TextDocumentService {
 
         activeDocuments.put(uri, new VersionedContent(document.getText(), document.getVersion()));
 
-        doLint(Collections.singleton(uri));
+        server.lint(Collections.singleton(uri));
     }
 
     @Override
@@ -263,13 +256,13 @@ class JavaTextDocumentService implements TextDocumentService {
         activeDocuments.remove(uri);
 
         // Clear diagnostics
-        server.publishDiagnostics(uri, Collections.emptyList());
+        server.publishDiagnostics(Collections.singletonList(uri), Collections.emptyList());
     }
 
     @Override
     public void didSave(DidSaveTextDocumentParams params) {
         // Re-lint all active documents
-        doLint(activeDocuments.keySet());
+        server.lint(activeDocuments.keySet());
     }
 
     VersionedContent contents(URI openFile) {
