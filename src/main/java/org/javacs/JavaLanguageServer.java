@@ -2,6 +2,8 @@ package org.javacs;
 
 import com.google.common.collect.ImmutableList;
 import java.net.URI;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
@@ -17,6 +19,7 @@ import org.eclipse.lsp4j.services.WorkspaceService;
 class JavaLanguageServer implements LanguageServer {
     private static final Logger LOG = Logger.getLogger("main");
 
+    Path workspaceRoot;
     LanguageClient client;
     JavaCompilerService compiler;
     JavaTextDocumentService textDocuments = new JavaTextDocumentService(this);
@@ -75,9 +78,21 @@ class JavaLanguageServer implements LanguageServer {
         publishDiagnostics(paths, compiler.lint(paths));
     }
 
+    private JavaCompilerService createCompiler() {
+        Objects.requireNonNull(workspaceRoot, "Can't create compiler because workspaceRoot has not been initialized");
+        InferConfig infer = new InferConfig(workspaceRoot);
+        return new JavaCompilerService(Collections.emptySet(), infer.classPath());
+    }
+
+    void updateConfig(URI configFile) {
+        LOG.info(String.format("Update classpath and sourcepath because %s changed", configFile));
+        this.compiler = createCompiler();
+    }
+
     @Override
     public CompletableFuture<InitializeResult> initialize(InitializeParams params) {
-        this.compiler = new JavaCompilerService(Collections.emptySet(), Collections.emptySet());
+        this.workspaceRoot = Paths.get(URI.create(params.getRootUri()));
+        this.compiler = createCompiler();
         this.textDocuments = new JavaTextDocumentService(this);
         this.workspace = new JavaWorkspaceService(this);
 

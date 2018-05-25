@@ -51,7 +51,7 @@ class ChildFirstClassLoader extends URLClassLoader {
             try {
                 c = findClass(name);
 
-                LOG.info("Loaded " + c + " from child class loader");
+                // LOG.info("Loaded " + c + " from child class loader");
 
                 return c;
             } catch (ClassNotFoundException e) {

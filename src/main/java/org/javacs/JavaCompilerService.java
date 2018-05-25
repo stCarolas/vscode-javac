@@ -26,7 +26,6 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.*;
 
-// TODO rename to JavaCompilerService
 public class JavaCompilerService {
     private static final Logger LOG = Logger.getLogger("main");
 

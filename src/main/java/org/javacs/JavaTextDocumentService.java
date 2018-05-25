@@ -183,32 +183,38 @@ class JavaTextDocumentService implements TextDocumentService {
         return null;
     }
 
+    private boolean isJava(URI uri) {
+        return uri.getPath().endsWith(".java");
+    }
+
     @Override
     public void didOpen(DidOpenTextDocumentParams params) {
         TextDocumentItem document = params.getTextDocument();
         URI uri = URI.create(document.getUri());
-
-        activeDocuments.put(uri, new VersionedContent(document.getText(), document.getVersion()));
-
-        server.lint(Collections.singleton(uri));
+        if (isJava(uri)) {
+            activeDocuments.put(uri, new VersionedContent(document.getText(), document.getVersion()));
+            server.lint(Collections.singleton(uri));
+        }
     }
 
     @Override
     public void didChange(DidChangeTextDocumentParams params) {
         VersionedTextDocumentIdentifier document = params.getTextDocument();
         URI uri = URI.create(document.getUri());
-        VersionedContent existing = activeDocuments.get(uri);
-        String newText = existing.content;
+        if (isJava(uri)) {
+            VersionedContent existing = activeDocuments.get(uri);
+            String newText = existing.content;
 
-        if (document.getVersion() > existing.version) {
-            for (TextDocumentContentChangeEvent change : params.getContentChanges()) {
-                if (change.getRange() == null)
-                    activeDocuments.put(uri, new VersionedContent(change.getText(), document.getVersion()));
-                else newText = patch(newText, change);
-            }
+            if (document.getVersion() > existing.version) {
+                for (TextDocumentContentChangeEvent change : params.getContentChanges()) {
+                    if (change.getRange() == null)
+                        activeDocuments.put(uri, new VersionedContent(change.getText(), document.getVersion()));
+                    else newText = patch(newText, change);
+                }
 
-            activeDocuments.put(uri, new VersionedContent(newText, document.getVersion()));
-        } else LOG.warning("Ignored change with version " + document.getVersion() + " <= " + existing.version);
+                activeDocuments.put(uri, new VersionedContent(newText, document.getVersion()));
+            } else LOG.warning("Ignored change with version " + document.getVersion() + " <= " + existing.version);
+        }
     }
 
     private String patch(String sourceText, TextDocumentContentChangeEvent change) {
@@ -251,30 +257,35 @@ class JavaTextDocumentService implements TextDocumentService {
     public void didClose(DidCloseTextDocumentParams params) {
         TextDocumentIdentifier document = params.getTextDocument();
         URI uri = URI.create(document.getUri());
+        if (isJava(uri)) {
+            // Remove from source cache
+            activeDocuments.remove(uri);
 
-        // Remove from source cache
-        activeDocuments.remove(uri);
-
-        // Clear diagnostics
-        server.publishDiagnostics(Collections.singletonList(uri), Collections.emptyList());
+            // Clear diagnostics
+            server.publishDiagnostics(Collections.singletonList(uri), Collections.emptyList());
+        }
     }
 
     @Override
     public void didSave(DidSaveTextDocumentParams params) {
-        // Re-lint all active documents
-        server.lint(activeDocuments.keySet());
+        URI uri = URI.create(params.getTextDocument().getUri());
+        if (isJava(uri)) {
+            // Re-lint all active documents
+            server.lint(activeDocuments.keySet());
+        } else server.updateConfig(uri);
     }
 
     VersionedContent contents(URI openFile) {
         if (activeDocuments.containsKey(openFile)) {
             return activeDocuments.get(openFile);
-        } else
+        } else {
             try {
                 String content = Files.readAllLines(Paths.get(openFile)).stream().collect(Collectors.joining("\n"));
                 return new VersionedContent(content, -1);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
+        }
     }
 
     private static final Logger LOG = Logger.getLogger("main");

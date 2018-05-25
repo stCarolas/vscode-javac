@@ -52,7 +52,7 @@ class SymbolIndex {
 
     private void initialIndex() {
         // TODO send a progress bar to the user
-        updateIndex(InferConfig.allJavaFiles(workspaceRoot).map(Path::toUri));
+        // updateIndex(InferConfig.allJavaFiles(workspaceRoot).map(Path::toUri));
 
         finishedInitialIndex.complete(null);
     }

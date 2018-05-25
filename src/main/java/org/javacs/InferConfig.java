@@ -1,15 +1,14 @@
 package org.javacs;
 
-import com.google.common.base.Joiner;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.file.*;
-import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -20,105 +19,66 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 class InferConfig {
+    private static final Logger LOG = Logger.getLogger("main");
+
     /** Root of the workspace that is currently open in VSCode */
     private final Path workspaceRoot;
-    /** User-specified external dependencies, configured with java.externalDependencies */
-    private final Collection<Artifact> externalDependencies;
-    /** User-specified class path, configured with java.classPath */
-    private final List<Path> classPath;
     /** Location of the maven repository, usually ~/.m2 */
     private final Path mavenHome;
-    /** Location of the gradle cache, usually ~/.gradle */
-    private final Path gradleHome;
 
-    InferConfig(
-            Path workspaceRoot,
-            Collection<Artifact> externalDependencies,
-            List<Path> classPath,
-            Path mavenHome,
-            Path gradleHome) {
+    InferConfig(Path workspaceRoot, Path mavenHome) {
         this.workspaceRoot = workspaceRoot;
-        this.externalDependencies = externalDependencies;
-        this.classPath = classPath;
         this.mavenHome = mavenHome;
-        this.gradleHome = gradleHome;
     }
 
-    // TODO move to JavaLanguageServer
-    static Stream<Path> allJavaFiles(Path dir) {
-        PathMatcher match = FileSystems.getDefault().getPathMatcher("glob:*.java");
-
-        try {
-            // TODO instead of looking at EVERY file, once you see a few files with the same source directory,
-            // ignore all subsequent files in the directory
-            return Files.walk(dir).filter(java -> match.matches(java.getFileName()));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+    InferConfig(Path workspaceRoot) {
+        this(workspaceRoot, defaultMavenHome());
     }
 
-    static Instant buildFilesModified(Path workspaceRoot) {
-        Instant workspaceModified = fileModified(workspaceRoot.resolve("WORKSPACE")),
-                pomModified = fileModified(workspaceRoot.resolve("pom.xml"));
-
-        return maxTime(workspaceModified, pomModified);
+    private static Path defaultMavenHome() {
+        return Paths.get(System.getProperty("user.home")).resolve(".m2");
     }
 
-    private static Instant fileModified(Path file) {
-        if (Files.exists(file)) {
-            try {
-                return Files.getLastModifiedTime(file).toInstant();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        } else return Instant.EPOCH;
-    }
-
-    private static Instant maxTime(Instant... of) {
-        Instant result = Instant.EPOCH;
-
-        for (Instant each : of) {
-            if (each.isAfter(result)) result = each;
-        }
-
+    Set<Path> classPath() {
+        Set<Path> result = new HashSet<>();
+        result.addAll(buildClassPath());
+        result.addAll(workspaceClassPath());
         return result;
     }
 
-    /**
-     * Find .jar files for external dependencies, for examples settings `externalDependencies` in local maven / gradle
-     * repository.
-     */
+    /** Find .jar files for external dependencies, for examples maven dependencies in ~/.m2 or jars in bazel-genfiles */
     Set<Path> buildClassPath() {
-        // Settings `externalDependencies`
-        Stream<Path> result =
-                allExternalDependencies().stream().flatMap(artifact -> stream(findAnyJar(artifact, false)));
+        Set<Path> result = new HashSet<>();
 
-        // Settings `classPath`
-        Stream<Path> classPathJars = classPath.stream().flatMap(jar -> stream(findWorkspaceJar(jar)));
-
-        result = Stream.concat(result, classPathJars);
+        // Maven
+        Collection<Artifact> as = mvnDependencies();
+        if (!as.isEmpty()) {
+            LOG.info("Looking for artifacts:");
+            for (Artifact a : as) {
+                LOG.info("  " + a);
+            }
+        }
+        for (Artifact a : as) {
+            Optional<Path> found = findMavenJar(a, false);
+            if (found.isPresent()) result.add(found.get());
+            else LOG.warning(String.format("Couldn't find jar for %s in %s", a, mavenHome));
+        }
 
         // Bazel
         if (Files.exists(workspaceRoot.resolve("WORKSPACE"))) {
             Path bazelGenFiles = workspaceRoot.resolve("bazel-genfiles");
 
             if (Files.exists(bazelGenFiles) && Files.isSymbolicLink(bazelGenFiles)) {
-                result = Stream.concat(result, bazelJars(bazelGenFiles));
+                Set<Path> jars = bazelJars(bazelGenFiles);
+                LOG.info(String.format("Adding bazel dependencies in %s:", bazelGenFiles));
+                for (Path j : jars) {
+                    LOG.info("  " + bazelGenFiles.toAbsolutePath().relativize(j));
+                }
+                result.addAll(jars);
             }
         }
 
-        return result.collect(Collectors.toSet());
-    }
-
-    private Optional<Path> findWorkspaceJar(Path jar) {
-        jar = workspaceRoot.resolve(jar);
-
-        if (Files.exists(jar)) return Optional.of(jar);
-        else {
-            LOG.warning("No such file " + jar);
-
-            return Optional.empty();
-        }
+        return result;
     }
 
     /**
@@ -131,7 +91,7 @@ class InferConfig {
             Path bazelBin = workspaceRoot.resolve("bazel-bin");
 
             if (Files.exists(bazelBin) && Files.isSymbolicLink(bazelBin)) {
-                return bazelOutputDirectories(bazelBin).collect(Collectors.toSet());
+                return bazelOutputDirectories(bazelBin);
             }
         }
 
@@ -163,23 +123,25 @@ class InferConfig {
      *
      * <p>bazel-bin/path/to/module/_javac/rule/lib*_classes
      */
-    private Stream<Path> bazelOutputDirectories(Path bazelBin) {
+    private Set<Path> bazelOutputDirectories(Path bazelBin) {
         try {
             Path target = Files.readSymbolicLink(bazelBin);
             PathMatcher match = FileSystems.getDefault().getPathMatcher("glob:**/_javac/*/lib*_classes");
 
-            return Files.walk(target).filter(match::matches).filter(Files::isDirectory);
+            return Files.walk(target).filter(match::matches).filter(Files::isDirectory).collect(Collectors.toSet());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
     /** Search bazel-genfiles for jars */
-    private Stream<Path> bazelJars(Path bazelGenFiles) {
+    private Set<Path> bazelJars(Path bazelGenFiles) {
         try {
             Path target = Files.readSymbolicLink(bazelGenFiles);
 
-            return Files.walk(target).filter(file -> file.getFileName().toString().endsWith(".jar"));
+            return Files.walk(target)
+                    .filter(file -> file.getFileName().toString().endsWith(".jar"))
+                    .collect(Collectors.toSet());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -187,20 +149,16 @@ class InferConfig {
 
     /** Find source .jar files for `externalDependencies` in local maven / gradle repository. */
     Set<Path> buildDocPath() {
-        return allExternalDependencies()
-                .stream()
-                .flatMap(artifact -> stream(findAnyJar(artifact, true)))
-                .collect(Collectors.toSet());
+        Set<Path> result = new HashSet<>();
+        // Maven
+        for (Artifact a : mvnDependencies()) {
+            findMavenJar(a, true).ifPresent(result::add);
+        }
+        // TODO Bazel
+        return result;
     }
 
-    private Optional<Path> findAnyJar(Artifact artifact, boolean source) {
-        Optional<Path> maven = findMavenJar(artifact, source);
-
-        if (maven.isPresent()) return maven;
-        else return findGradleJar(artifact, source);
-    }
-
-    private Optional<Path> findMavenJar(Artifact artifact, boolean source) {
+    Optional<Path> findMavenJar(Artifact artifact, boolean source) {
         Path jar =
                 mavenHome
                         .resolve("repository")
@@ -213,60 +171,8 @@ class InferConfig {
         else return Optional.empty();
     }
 
-    private Optional<Path> findGradleJar(Artifact artifact, boolean source) {
-        // Search for caches/modules-*/files-*/groupId/artifactId/version/*/artifactId-version[-sources].jar
-        Path base = gradleHome.resolve("caches");
-        String pattern =
-                "glob:"
-                        + Joiner.on(File.separatorChar)
-                                .join(
-                                        base.toString(),
-                                        "modules-*",
-                                        "files-*",
-                                        artifact.groupId,
-                                        artifact.artifactId,
-                                        artifact.version,
-                                        "*",
-                                        fileName(artifact, source));
-        PathMatcher match = FileSystems.getDefault().getPathMatcher(pattern);
-
-        try {
-            return Files.walk(base, 7).filter(match::matches).findFirst();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     private String fileName(Artifact artifact, boolean source) {
         return artifact.artifactId + '-' + artifact.version + (source ? "-sources" : "") + ".jar";
-    }
-
-    private boolean isSourceJar(Path jar) {
-        return jar.getFileName().toString().endsWith("-sources.jar");
-    }
-
-    private int compareMavenVersions(Path leftJar, Path rightJar) {
-        return compareVersions(mavenVersion(leftJar), mavenVersion(rightJar));
-    }
-
-    private String[] mavenVersion(Path jar) {
-        return jar.getParent().getFileName().toString().split("\\.");
-    }
-
-    private int compareVersions(String[] left, String[] right) {
-        int n = Math.min(left.length, right.length);
-
-        for (int i = 0; i < n; i++) {
-            int each = left[i].compareTo(right[i]);
-
-            if (each != 0) return each;
-        }
-
-        return 0;
-    }
-
-    private static <T> Stream<T> stream(Optional<T> option) {
-        return option.map(Stream::of).orElseGet(Stream::empty);
     }
 
     static List<Artifact> dependencyList(Path pomXml) {
@@ -306,10 +212,7 @@ class InferConfig {
     }
 
     /** Get external dependencies from this.externalDependencies if available, or try to infer them. */
-    private Collection<Artifact> allExternalDependencies() {
-        if (!externalDependencies.isEmpty()) return externalDependencies;
-
-        // If user does not specify java.externalDependencies, look for pom.xml
+    private Collection<Artifact> mvnDependencies() {
         Path pomXml = workspaceRoot.resolve("pom.xml");
 
         if (Files.exists(pomXml)) return dependencyList(pomXml);
@@ -337,6 +240,4 @@ class InferConfig {
         }
         return null;
     }
-
-    private static final Logger LOG = Logger.getLogger("main");
 }
