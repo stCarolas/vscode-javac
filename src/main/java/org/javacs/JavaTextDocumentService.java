@@ -1,207 +1,145 @@
 package org.javacs;
 
 import com.google.common.base.Joiner;
-import com.google.common.collect.Sets;
+import com.sun.source.tree.CompilationUnitTree;
+import com.sun.source.tree.LineMap;
+import com.sun.source.util.SourcePositions;
+import com.sun.source.util.TreePath;
 import com.sun.source.util.Trees;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.net.URI;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 import javax.lang.model.element.Element;
-import javax.tools.DiagnosticCollector;
-import javax.tools.JavaFileObject;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.VariableElement;
 import org.eclipse.lsp4j.*;
-import org.eclipse.lsp4j.jsonrpc.CompletableFutures;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
-import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.TextDocumentService;
 
 class JavaTextDocumentService implements TextDocumentService {
-    private final CompletableFuture<LanguageClient> client;
     private final JavaLanguageServer server;
     private final Map<URI, VersionedContent> activeDocuments = new HashMap<>();
 
-    JavaTextDocumentService(CompletableFuture<LanguageClient> client, JavaLanguageServer server) {
-        this.client = client;
+    JavaTextDocumentService(JavaLanguageServer server) {
         this.server = server;
-    }
-
-    /** Text of file, if it is in the active set */
-    Optional<String> activeContent(URI file) {
-        return Optional.ofNullable(activeDocuments.get(file)).map(doc -> doc.content);
-    }
-
-    /** All open files, not including things like old git-versions in a diff view */
-    Set<URI> openFiles() {
-        return Sets.filter(activeDocuments.keySet(), uri -> uri.getScheme().equals("file"));
     }
 
     void doLint(Collection<URI> paths) {
         LOG.info("Lint " + Joiner.on(", ").join(paths));
 
-        List<javax.tools.Diagnostic<? extends JavaFileObject>> errors = new ArrayList<>();
-        Map<URI, Optional<String>> content = paths.stream().collect(Collectors.toMap(f -> f, this::activeContent));
-        DiagnosticCollector<JavaFileObject> compile = server.configured().compiler.compileBatch(content);
-
-        errors.addAll(compile.getDiagnostics());
-
-        publishDiagnostics(paths, errors);
-    }
-
-    private void publishDiagnostics(
-            Collection<URI> touched, List<javax.tools.Diagnostic<? extends JavaFileObject>> diagnostics) {
-        Map<URI, PublishDiagnosticsParams> files =
-                touched.stream()
-                        .collect(
-                                Collectors.toMap(
-                                        uri -> uri,
-                                        newUri -> new PublishDiagnosticsParams(newUri.toString(), new ArrayList<>())));
-
-        // Organize diagnostics by file
-        for (javax.tools.Diagnostic<? extends JavaFileObject> error : diagnostics) {
-            URI uri = error.getSource().toUri();
-            PublishDiagnosticsParams publish =
-                    files.computeIfAbsent(
-                            uri, newUri -> new PublishDiagnosticsParams(newUri.toString(), new ArrayList<>()));
-            Lints.convert(error).ifPresent(publish.getDiagnostics()::add);
-        }
-
-        // If there are no errors in a file, put an empty PublishDiagnosticsParams
-        for (URI each : touched) files.putIfAbsent(each, new PublishDiagnosticsParams());
-
-        files.forEach(
-                (file, errors) -> {
-                    if (touched.contains(file)) {
-                        client.join().publishDiagnostics(errors);
-
-                        LOG.info("Published " + errors.getDiagnostics().size() + " errors from " + file);
-                    } else LOG.info("Ignored " + errors.getDiagnostics().size() + " errors from not-open " + file);
-                });
+        // TODO
     }
 
     @Override
     public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completion(
             TextDocumentPositionParams position) {
-        Instant started = Instant.now();
         URI uri = URI.create(position.getTextDocument().getUri());
-        Optional<String> content = activeContent(uri);
+        String content = contents(uri).content;
         int line = position.getPosition().getLine() + 1;
-        int character = position.getPosition().getCharacter() + 1;
-
-        LOG.info(String.format("completion at %s %d:%d", uri, line, character));
-
-        Configured config = server.configured();
-        FocusedResult result = config.compiler.compileFocused(uri, content, line, character, true);
-        List<CompletionItem> items =
-                Completions.at(result, config.index, config.docs).limit(server.maxItems).collect(Collectors.toList());
-        CompletionList list = new CompletionList(items.size() == server.maxItems, items);
-        Duration elapsed = Duration.between(started, Instant.now());
-
-        if (list.isIncomplete())
-            LOG.info(String.format("Found %d items (incomplete) in %d ms", items.size(), elapsed.toMillis()));
-        else LOG.info(String.format("Found %d items in %d ms", items.size(), elapsed.toMillis()));
-
-        return CompletableFuture.completedFuture(Either.forRight(list));
+        int column = position.getPosition().getCharacter();
+        List<CompletionItem> result = new ArrayList<>();
+        for (Completion c : server.compiler.completions(uri, content, line, column)) {
+            CompletionItem i = new CompletionItem();
+            if (c.element != null) {
+                i.setLabel(c.element.getSimpleName().toString());
+                // TODO details
+            } else if (c.packagePart != null) {
+                i.setLabel(c.packagePart.name);
+                // TODO details
+            }
+            result.add(i);
+        }
+        return CompletableFuture.completedFuture(Either.forRight(new CompletionList(false, result)));
     }
 
     @Override
     public CompletableFuture<CompletionItem> resolveCompletionItem(CompletionItem unresolved) {
-        return CompletableFutures.computeAsync(
-                cancel -> {
-                    server.configured().docs.resolveCompletionItem(unresolved);
-
-                    return unresolved;
-                });
+        return CompletableFuture.completedFuture(unresolved); // TODO
     }
 
     @Override
     public CompletableFuture<Hover> hover(TextDocumentPositionParams position) {
         URI uri = URI.create(position.getTextDocument().getUri());
-        Optional<String> content = activeContent(uri);
+        String content = contents(uri).content;
         int line = position.getPosition().getLine() + 1;
-        int character = position.getPosition().getCharacter() + 1;
-
-        LOG.info(String.format("hover at %s %d:%d", uri, line, character));
-
-        FocusedResult result = server.configured().compiler.compileFocused(uri, content, line, character, false);
-        Hover hover = elementAtCursor(result).map(this::hoverText).orElseGet(this::emptyHover);
-
-        return CompletableFuture.completedFuture(hover);
-    }
-
-    private Optional<Element> elementAtCursor(FocusedResult compiled) {
-        return compiled.cursor.flatMap(
-                cursor -> {
-                    Element el = Trees.instance(compiled.task).getElement(cursor);
-
-                    return Optional.ofNullable(el);
-                });
-    }
-
-    private Hover hoverText(Element el) {
-        return Hovers.hoverText(el, server.configured().docs);
-    }
-
-    private Hover emptyHover() {
-        return new Hover(Collections.emptyList(), null);
+        int column = position.getPosition().getCharacter();
+        Element e = server.compiler.element(uri, content, line, column);
+        if (e != null && e.asType() != null) {
+            MarkedString hover = new MarkedString("java", e.asType().toString());
+            Hover result = new Hover(Collections.singletonList(Either.forRight(hover)));
+            return CompletableFuture.completedFuture(result);
+        } else return CompletableFuture.completedFuture(new Hover(Collections.emptyList()));
     }
 
     @Override
     public CompletableFuture<SignatureHelp> signatureHelp(TextDocumentPositionParams position) {
         URI uri = URI.create(position.getTextDocument().getUri());
-        Optional<String> content = activeContent(uri);
+        String content = contents(uri).content;
         int line = position.getPosition().getLine() + 1;
-        int character = position.getPosition().getCharacter() + 1;
+        int column = position.getPosition().getCharacter();
+        List<SignatureInformation> result = new ArrayList<>();
+        for (ExecutableElement e : server.compiler.overloads(uri, content, line, column)) {
+            SignatureInformation i = new SignatureInformation();
+            i.setLabel(e.getSimpleName().toString());
+            List<ParameterInformation> ps = new ArrayList<>();
+            for (VariableElement v : e.getParameters()) {
+                ParameterInformation p = new ParameterInformation();
+                p.setLabel(v.getSimpleName().toString());
+                // TODO use type when name is not available
+            }
+            i.setParameters(ps);
+            result.add(i);
+        }
+        int activeSig = 0; // TODO
+        int activeParam = 0; // TODO
+        return CompletableFuture.completedFuture(new SignatureHelp(result, activeSig, activeParam));
+    }
 
-        LOG.info(String.format("signatureHelp at %s %d:%d", uri, line, character));
-
-        Configured config = server.configured();
-        FocusedResult result = config.compiler.compileFocused(uri, content, line, character, true);
-        SignatureHelp help = Signatures.help(result, line, character, config.docs).orElseGet(SignatureHelp::new);
-
-        return CompletableFuture.completedFuture(help);
+    private Location location(TreePath p) {
+        Trees trees = server.compiler.trees();
+        SourcePositions pos = trees.getSourcePositions();
+        CompilationUnitTree cu = p.getCompilationUnit();
+        LineMap lines = cu.getLineMap();
+        long start = pos.getStartPosition(cu, p.getLeaf()), end = pos.getEndPosition(cu, p.getLeaf());
+        int startLine = (int) lines.getLineNumber(start) - 1, startCol = (int) lines.getColumnNumber(start);
+        int endLine = (int) lines.getLineNumber(end) - 1, endCol = (int) lines.getColumnNumber(end);
+        URI dUri = cu.getSourceFile().toUri();
+        return new Location(
+                dUri.toString(), new Range(new Position(startLine, startCol), new Position(endLine, endCol)));
     }
 
     @Override
     public CompletableFuture<List<? extends Location>> definition(TextDocumentPositionParams position) {
         URI uri = URI.create(position.getTextDocument().getUri());
-        Optional<String> content = activeContent(uri);
+        String content = contents(uri).content;
         int line = position.getPosition().getLine() + 1;
-        int character = position.getPosition().getCharacter() + 1;
-
-        LOG.info(String.format("definition at %s %d:%d", uri, line, character));
-
-        Configured config = server.configured();
-        FocusedResult result = config.compiler.compileFocused(uri, content, line, character, false);
-        List<Location> locations =
-                References.gotoDefinition(result, config.find)
-                        .map(Collections::singletonList)
-                        .orElseGet(Collections::emptyList);
-        return CompletableFuture.completedFuture(locations);
+        int column = position.getPosition().getCharacter();
+        List<Location> result = new ArrayList<>();
+        server.compiler
+                .definition(uri, content, line, column)
+                .ifPresent(
+                        d -> {
+                            result.add(location(d));
+                        });
+        return CompletableFuture.completedFuture(result);
     }
 
     @Override
-    public CompletableFuture<List<? extends Location>> references(ReferenceParams params) {
-        URI uri = URI.create(params.getTextDocument().getUri());
-        Optional<String> content = activeContent(uri);
-        int line = params.getPosition().getLine() + 1;
-        int character = params.getPosition().getCharacter() + 1;
-
-        LOG.info(String.format("references at %s %d:%d", uri, line, character));
-
-        Configured config = server.configured();
-        FocusedResult result = config.compiler.compileFocused(uri, content, line, character, false);
-        List<Location> locations =
-                References.findReferences(result, config.find).limit(server.maxItems).collect(Collectors.toList());
-
-        return CompletableFuture.completedFuture(locations);
+    public CompletableFuture<List<? extends Location>> references(ReferenceParams position) {
+        URI uri = URI.create(position.getTextDocument().getUri());
+        String content = contents(uri).content;
+        int line = position.getPosition().getLine() + 1;
+        int column = position.getPosition().getCharacter();
+        List<Location> result = new ArrayList<>();
+        for (TreePath r : server.compiler.references(uri, content, line, column)) {
+            result.add(location(r));
+        }
+        return CompletableFuture.completedFuture(result);
     }
 
     @Override
@@ -211,31 +149,12 @@ class JavaTextDocumentService implements TextDocumentService {
 
     @Override
     public CompletableFuture<List<? extends SymbolInformation>> documentSymbol(DocumentSymbolParams params) {
-        URI uri = URI.create(params.getTextDocument().getUri());
-        List<SymbolInformation> symbols = server.configured().index.allInFile(uri).collect(Collectors.toList());
-
-        return CompletableFuture.completedFuture(symbols);
+        return null; // TODO
     }
 
     @Override
     public CompletableFuture<List<? extends Command>> codeAction(CodeActionParams params) {
-        // Compilation is expensive
-        // Don't do it unless a codeAction is actually possible
-        // At the moment we only generate code actions in response to diagnostics
-        if (params.getContext().getDiagnostics().isEmpty())
-            return CompletableFuture.completedFuture(Collections.emptyList());
-
-        URI uri = URI.create(params.getTextDocument().getUri());
-        int line = params.getRange().getStart().getLine() + 1;
-        int character = params.getRange().getStart().getCharacter() + 1;
-
-        LOG.info(String.format("codeAction at %s %d:%d", uri, line, character));
-
-        Configured config = server.configured();
-        List<Command> commands =
-                new CodeActions(config.compiler, uri, activeContent(uri), line, character, config.index).find(params);
-
-        return CompletableFuture.completedFuture(commands);
+        return null;
     }
 
     @Override
@@ -341,13 +260,18 @@ class JavaTextDocumentService implements TextDocumentService {
         activeDocuments.remove(uri);
 
         // Clear diagnostics
-        client.join().publishDiagnostics(new PublishDiagnosticsParams(uri.toString(), new ArrayList<>()));
+        server.publishDiagnostics(uri, Collections.emptyList());
     }
 
     @Override
     public void didSave(DidSaveTextDocumentParams params) {
         // Re-lint all active documents
-        doLint(openFiles());
+        doLint(activeDocuments.keySet());
+    }
+
+    VersionedContent contents(URI openFile) {
+        if (activeDocuments.containsKey(openFile)) return activeDocuments.get(openFile);
+        else throw new RuntimeException("TODO read file from disk");
     }
 
     private static final Logger LOG = Logger.getLogger("main");

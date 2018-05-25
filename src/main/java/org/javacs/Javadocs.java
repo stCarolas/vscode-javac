@@ -38,8 +38,7 @@ public class Javadocs {
     private final JavacFileManager actualFileManager;
 
     /** Empty file manager we pass to javadoc to prevent it from roaming all over the place */
-    private final JavacFileManager emptyFileManager =
-            JavacTool.create().getStandardFileManager(JavaLanguageServer::onDiagnostic, null, null);
+    private final JavacFileManager emptyFileManager = JavacTool.create().getStandardFileManager(__ -> {}, null, null);
 
     /** All the classes we have indexed so far */
     private final Map<String, IndexedDoc> topLevelClasses = new ConcurrentHashMap<>();
@@ -60,8 +59,7 @@ public class Javadocs {
 
     Javadocs(Set<Path> sourcePath, Set<Path> docPath, Function<URI, Optional<String>> activeContent) {
         this.actualFileManager = createFileManager(allSourcePaths(sourcePath, docPath));
-        this.task =
-                JavacTool.create().getTask(null, emptyFileManager, JavaLanguageServer::onDiagnostic, null, null, null);
+        this.task = JavacTool.create().getTask(null, emptyFileManager, __ -> {}, null, null, null);
         this.activeContent = activeContent;
     }
 
@@ -80,8 +78,7 @@ public class Javadocs {
     }
 
     private static JavacFileManager createFileManager(Set<File> allSourcePaths) {
-        JavacFileManager actualFileManager =
-                JavacTool.create().getStandardFileManager(JavaLanguageServer::onDiagnostic, null, null);
+        JavacFileManager actualFileManager = JavacTool.create().getStandardFileManager(__ -> {}, null, null);
 
         try {
             actualFileManager.setLocation(StandardLocation.SOURCE_PATH, allSourcePaths);
@@ -246,13 +243,7 @@ public class Javadocs {
 
             DocumentationTool.DocumentationTask task =
                     new JavadocTool()
-                            .getTask(
-                                    null,
-                                    emptyFileManager,
-                                    JavaLanguageServer::onDiagnostic,
-                                    Javadocs.class,
-                                    null,
-                                    ImmutableList.of(source));
+                            .getTask(null, emptyFileManager, __ -> {}, Javadocs.class, null, ImmutableList.of(source));
 
             task.call();
 

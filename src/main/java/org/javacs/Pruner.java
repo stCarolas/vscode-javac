@@ -2,6 +2,7 @@ package org.javacs;
 
 import com.sun.source.tree.*;
 import com.sun.source.util.*;
+import com.sun.tools.javac.api.JavacTool;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.Charset;
@@ -12,7 +13,7 @@ import javax.tools.*;
 class Pruner {
     private static final Logger LOG = Logger.getLogger("main");
     // Parse-only compiler
-    private static final JavaCompiler COMPILER = ToolProvider.getSystemJavaCompiler();
+    private static final JavaCompiler COMPILER = JavacTool.create(); // TODO switch to java 9 mechanism
     private static final StandardJavaFileManager FILE_MANAGER =
             COMPILER.getStandardFileManager(Pruner::report, null, Charset.defaultCharset());
 

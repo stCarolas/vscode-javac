@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.logging.FileHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -65,6 +66,8 @@ public class Main {
 
     public static void main(String[] args) {
         try {
+            // TODO remove when it is stable again
+            Logger.getLogger("").addHandler(new FileHandler("javacs.%u.log", false));
             ClassLoader langTools = LangTools.createLangToolsClassLoader();
             Class<?> main = Class.forName("org.javacs.Main", true, langTools);
             Method run = main.getMethod("run");

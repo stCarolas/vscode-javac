@@ -4,6 +4,7 @@ import com.google.common.base.StandardSystemProperty;
 import com.google.common.reflect.ClassPath;
 import com.sun.source.tree.*;
 import com.sun.source.util.*;
+import com.sun.tools.javac.api.JavacTool;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -25,13 +26,14 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.*;
 
+// TODO rename to JavaCompilerService
 public class JavaPresentationCompiler {
     private static final Logger LOG = Logger.getLogger("main");
 
     // Not modifiable! If you want to edit these, you need to create a new instance
     private final Set<Path> sourcePath, classPath;
     private final ClassPath classPathIndex;
-    private final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+    private final JavaCompiler compiler = JavacTool.create(); // TODO switch to java 9 mechanism
     // Use the same file manager for multiple tasks, so we don't repeatedly re-compile the same files
     private final StandardJavaFileManager fileManager =
             compiler.getStandardFileManager(this::report, null, Charset.defaultCharset());
