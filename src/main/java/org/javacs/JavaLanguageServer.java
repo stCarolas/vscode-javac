@@ -17,7 +17,7 @@ class JavaLanguageServer implements LanguageServer {
     private static final Logger LOG = Logger.getLogger("main");
 
     LanguageClient client;
-    JavaPresentationCompiler compiler;
+    JavaCompilerService compiler;
     JavaTextDocumentService textDocuments = new JavaTextDocumentService(this);
     JavaWorkspaceService workspace = new JavaWorkspaceService(this);
 
@@ -27,7 +27,7 @@ class JavaLanguageServer implements LanguageServer {
 
     @Override
     public CompletableFuture<InitializeResult> initialize(InitializeParams params) {
-        this.compiler = new JavaPresentationCompiler(Collections.emptySet(), Collections.emptySet());
+        this.compiler = new JavaCompilerService(Collections.emptySet(), Collections.emptySet());
         this.textDocuments = new JavaTextDocumentService(this);
         this.workspace = new JavaWorkspaceService(this);
 

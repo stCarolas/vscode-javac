@@ -13,28 +13,25 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.logging.*;
 import java.util.stream.Collectors;
-import javax.lang.model.*;
 import javax.lang.model.element.*;
-import javax.lang.model.type.*;
-import javax.tools.*;
 import org.junit.Test;
 
-public class JavaPresentationCompilerTest {
+public class JavaCompilerServiceTest {
     private static final Logger LOG = Logger.getLogger("main");
 
-    private JavaPresentationCompiler compiler =
-            new JavaPresentationCompiler(Collections.singleton(resourcesDir()), Collections.emptySet());
+    private JavaCompilerService compiler =
+            new JavaCompilerService(Collections.singleton(resourcesDir()), Collections.emptySet());
 
     private static Path resourcesDir() {
         try {
-            return Paths.get(JavaPresentationCompilerTest.class.getResource("/HelloWorld.java").toURI()).getParent();
+            return Paths.get(JavaCompilerServiceTest.class.getResource("/HelloWorld.java").toURI()).getParent();
         } catch (URISyntaxException e) {
             throw new RuntimeException(e);
         }
     }
 
     private String contents(String resourceFile) {
-        try (InputStream in = JavaPresentationCompilerTest.class.getResourceAsStream(resourceFile)) {
+        try (InputStream in = JavaCompilerServiceTest.class.getResourceAsStream(resourceFile)) {
             return new BufferedReader(new InputStreamReader(in)).lines().collect(Collectors.joining("\n"));
         } catch (IOException e) {
             throw new RuntimeException(e);

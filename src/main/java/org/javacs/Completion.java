@@ -3,8 +3,7 @@ package org.javacs;
 import javax.lang.model.element.Element;
 
 /**
- * Union of the different types of completion provided by JavaPresentationCompiler. Only one of the members will be
- * non-null.
+ * Union of the different types of completion provided by JavaCompilerService. Only one of the members will be non-null.
  */
 public class Completion {
     public final Element element;

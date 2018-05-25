@@ -27,7 +27,7 @@ import javax.lang.model.util.Types;
 import javax.tools.*;
 
 // TODO rename to JavaCompilerService
-public class JavaPresentationCompiler {
+public class JavaCompilerService {
     private static final Logger LOG = Logger.getLogger("main");
 
     // Not modifiable! If you want to edit these, you need to create a new instance
@@ -41,7 +41,7 @@ public class JavaPresentationCompiler {
     // Since the user can only edit one file at a time, this should be sufficient
     private Cache cache;
 
-    public JavaPresentationCompiler(Set<Path> sourcePath, Set<Path> classPath) {
+    public JavaCompilerService(Set<Path> sourcePath, Set<Path> classPath) {
         // sourcePath and classPath can't actually be modified, because JavaCompiler remembers them from task to task
         this.sourcePath = Collections.unmodifiableSet(sourcePath);
         this.classPath = Collections.unmodifiableSet(classPath);
@@ -173,7 +173,7 @@ public class JavaPresentationCompiler {
                 compiler.getTask(
                         null,
                         fileManager,
-                        JavaPresentationCompiler.this::report,
+                        JavaCompilerService.this::report,
                         options(sourcePath, classPath),
                         Collections.emptyList(),
                         Collections.singletonList(new StringFileObject(contents, file)));
@@ -184,7 +184,7 @@ public class JavaPresentationCompiler {
                 compiler.getTask(
                         null,
                         fileManager,
-                        JavaPresentationCompiler.this::report,
+                        JavaCompilerService.this::report,
                         options(sourcePath, classPath),
                         Collections.emptyList(),
                         fileManager.getJavaFileObjectsFromFiles(files));
