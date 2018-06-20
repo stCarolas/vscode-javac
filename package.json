@@ -72,6 +72,17 @@
                 "java.home": {
                     "type": "string",
                     "description": "Installation directory of Java 8"
+                },
+                "java.trace.server": {
+                    "scope": "window",
+                    "type": "string",
+                    "enum": [
+                        "off",
+                        "messages",
+                        "verbose"
+                    ],
+                    "default": "off",
+                    "description": "Traces the communication between VSCode and the language server."
                 }
             }
         }
