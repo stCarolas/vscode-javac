@@ -12,6 +12,8 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.FileHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -87,7 +89,10 @@ public class Main {
 
         try {
             JavaLanguageServer server = new JavaLanguageServer();
-            Launcher<LanguageClient> launcher = LSPLauncher.createServerLauncher(server, System.in, System.out);
+            ExecutorService threads = Executors.newSingleThreadExecutor(runnable -> new Thread(runnable, "client"));
+            Launcher<LanguageClient> launcher =
+                    LSPLauncher.createServerLauncher(
+                            server, System.in, System.out, threads, messageConsumer -> messageConsumer);
 
             server.installClient(launcher.getRemoteProxy());
             launcher.startListening();

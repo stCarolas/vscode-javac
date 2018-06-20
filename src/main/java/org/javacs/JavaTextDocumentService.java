@@ -32,8 +32,7 @@ class JavaTextDocumentService implements TextDocumentService {
     }
 
     @Override
-    public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completion(
-            TextDocumentPositionParams position) {
+    public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completion(CompletionParams position) {
         URI uri = URI.create(position.getTextDocument().getUri());
         String content = contents(uri).content;
         int line = position.getPosition().getLine() + 1;
@@ -81,13 +80,17 @@ class JavaTextDocumentService implements TextDocumentService {
         List<SignatureInformation> result = new ArrayList<>();
         for (ExecutableElement e : server.compiler.overloads(uri, content, line, column)) {
             SignatureInformation i = new SignatureInformation();
-            i.setLabel(e.getSimpleName().toString());
             List<ParameterInformation> ps = new ArrayList<>();
+            StringJoiner args = new StringJoiner(", ");
             for (VariableElement v : e.getParameters()) {
                 ParameterInformation p = new ParameterInformation();
-                p.setLabel(v.getSimpleName().toString());
+                String label = v.getSimpleName().toString();
                 // TODO use type when name is not available
+                args.add(label);
+                p.setLabel(label);
+                ps.add(p);
             }
+            i.setLabel(e.getSimpleName().toString() + "(" + args + ")");
             i.setParameters(ps);
             result.add(i);
         }
