@@ -403,6 +403,29 @@ public class JavaCompilerService {
             }
 
             return result;
+        } else if (element instanceof TypeElement) {
+            List<Completion> result = new ArrayList<>();
+            TypeElement t = (TypeElement) element;
+            Scope classScope = trees.getScope(trees.getPath(t));
+            while (classScope != null) {
+                for (Element e : classScope.getLocalElements()) {
+                    System.out.println(e);
+                }
+                classScope = classScope.getEnclosingScope();
+            }
+
+            // Add static members
+            for (Element member : t.getEnclosedElements()) {
+                if (member.getModifiers().contains(Modifier.STATIC)
+                        && trees.isAccessible(scope, member, (DeclaredType) t.asType())) {
+                    result.add(Completion.ofElement(member));
+                }
+            }
+
+            // Add .class
+            result.add(Completion.ofClassSymbol(t));
+
+            return result;
         } else {
             List<Completion> result = new ArrayList<>();
             List<TypeMirror> ts = supersWithSelf(element.asType());

@@ -50,7 +50,7 @@ class LanguageServerFixture {
         JavaLanguageServer server = new JavaLanguageServer();
         InitializeParams init = new InitializeParams();
 
-        init.setRootPath(workspaceRoot.toString());
+        init.setRootUri(workspaceRoot.toUri().toString());
 
         server.initialize(init);
         server.installClient(client);

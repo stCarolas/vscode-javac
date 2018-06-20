@@ -66,6 +66,7 @@ public class JavaCompilerServiceTest {
         for (Completion c : found) {
             if (c.element != null) result.add(c.element.getSimpleName().toString());
             else if (c.packagePart != null) result.add(c.packagePart.name);
+            else if (c.classSymbol != null) result.add("class");
         }
         return result;
     }
@@ -126,6 +127,17 @@ public class JavaCompilerServiceTest {
         assertThat(names, hasItem("subMethod"));
         assertThat(names, hasItem("superMethod"));
         assertThat(names, hasItem("equals"));
+    }
+
+    @Test
+    public void completeClass() {
+        List<Completion> found =
+                compiler.completions(URI.create("/CompleteClass.java"), contents("/CompleteClass.java"), 3, 23);
+        List<String> names = completionNames(found);
+        assertThat(names, hasItems("staticMethod", "staticField"));
+        assertThat(names, hasItems("class"));
+        assertThat(names, not(hasItem("instanceMethod")));
+        assertThat(names, not(hasItem("instanceField")));
     }
 
     @Test
