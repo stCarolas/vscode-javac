@@ -95,6 +95,7 @@ public class SymbolUnderCursorTest {
                     .hover(pos)
                     .get()
                     .getContents()
+                    .getLeft()
                     .forEach(hover -> result.add(hover.getRight().getValue()));
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);

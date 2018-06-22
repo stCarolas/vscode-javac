@@ -10,10 +10,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.eclipse.lsp4j.CompletionItem;
-import org.eclipse.lsp4j.Position;
-import org.eclipse.lsp4j.TextDocumentIdentifier;
-import org.eclipse.lsp4j.TextDocumentPositionParams;
+import org.eclipse.lsp4j.*;
 
 public class CompletionsBase {
     protected static final Logger LOG = Logger.getLogger("main");
@@ -72,7 +69,8 @@ public class CompletionsBase {
         return items.stream()
                 .flatMap(
                         i -> {
-                            if (i.getDocumentation() != null) return Stream.of(i.getDocumentation().trim());
+                            if (i.getDocumentation() != null)
+                                return Stream.of(i.getDocumentation().getRight().getValue().trim());
                             else return Stream.empty();
                         })
                 .collect(Collectors.toSet());
@@ -82,9 +80,8 @@ public class CompletionsBase {
 
     protected List<? extends CompletionItem> items(String file, int row, int column) {
         URI uri = FindResource.uri(file);
-        TextDocumentPositionParams position =
-                new TextDocumentPositionParams(
-                        new TextDocumentIdentifier(uri.toString()), new Position(row - 1, column - 1));
+        CompletionParams position =
+                new CompletionParams(new TextDocumentIdentifier(uri.toString()), new Position(row - 1, column - 1));
 
         try {
             return server.getTextDocumentService().completion(position).get().getRight().getItems();

@@ -71,32 +71,46 @@ class JavaTextDocumentService implements TextDocumentService {
         } else return CompletableFuture.completedFuture(new Hover(Collections.emptyList()));
     }
 
+    private SignatureInformation asSignatureInformation(ExecutableElement e) {
+        SignatureInformation i = new SignatureInformation();
+        List<ParameterInformation> ps = new ArrayList<>();
+        StringJoiner args = new StringJoiner(", ");
+        for (VariableElement v : e.getParameters()) {
+            ParameterInformation p = new ParameterInformation();
+            String label = v.getSimpleName().toString();
+            // TODO use type when name is not available
+            args.add(label);
+            p.setLabel(label);
+            ps.add(p);
+        }
+        String name = e.getSimpleName().toString();
+        if (name.equals("<init>")) name = e.getEnclosingElement().getSimpleName().toString();
+        i.setLabel(name + "(" + args + ")");
+        i.setParameters(ps);
+        return i;
+    }
+
+    private SignatureHelp asSignatureHelp(MethodInvocation invoke) {
+        List<SignatureInformation> sigs = new ArrayList<>();
+        for (ExecutableElement e : invoke.overloads) {
+            sigs.add(asSignatureInformation(e));
+        }
+        int activeSig = invoke.activeMethod.map(invoke.overloads::indexOf).orElse(0);
+        return new SignatureHelp(sigs, activeSig, invoke.activeParameter);
+    }
+
     @Override
     public CompletableFuture<SignatureHelp> signatureHelp(TextDocumentPositionParams position) {
         URI uri = URI.create(position.getTextDocument().getUri());
         String content = contents(uri).content;
         int line = position.getPosition().getLine() + 1;
         int column = position.getPosition().getCharacter() + 1;
-        List<SignatureInformation> result = new ArrayList<>();
-        for (ExecutableElement e : server.compiler.overloads(uri, content, line, column)) {
-            SignatureInformation i = new SignatureInformation();
-            List<ParameterInformation> ps = new ArrayList<>();
-            StringJoiner args = new StringJoiner(", ");
-            for (VariableElement v : e.getParameters()) {
-                ParameterInformation p = new ParameterInformation();
-                String label = v.getSimpleName().toString();
-                // TODO use type when name is not available
-                args.add(label);
-                p.setLabel(label);
-                ps.add(p);
-            }
-            i.setLabel(e.getSimpleName().toString() + "(" + args + ")");
-            i.setParameters(ps);
-            result.add(i);
-        }
-        int activeSig = 0; // TODO
-        int activeParam = 0; // TODO
-        return CompletableFuture.completedFuture(new SignatureHelp(result, activeSig, activeParam));
+        SignatureHelp help =
+                server.compiler
+                        .methodInvocation(uri, content, line, column)
+                        .map(this::asSignatureHelp)
+                        .orElse(new SignatureHelp());
+        return CompletableFuture.completedFuture(help);
     }
 
     private Location location(TreePath p) {

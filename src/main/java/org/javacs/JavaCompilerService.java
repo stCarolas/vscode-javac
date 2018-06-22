@@ -519,7 +519,7 @@ public class JavaCompilerService {
     }
 
     /** Find all overloads for the smallest method call that includes the cursor */
-    public List<ExecutableElement> overloads(URI file, String contents, int line, int character) {
+    public Optional<MethodInvocation> methodInvocation(URI file, String contents, int line, int character) {
         recompile(file, contents, line, character);
 
         Trees trees = Trees.instance(cache.task);
@@ -535,10 +535,30 @@ public class JavaCompilerService {
                         results.add((ExecutableElement) m);
                     }
                 }
-                return results;
+                int activeParameter = invoke.getArguments().indexOf(start.getLeaf());
+                Optional<ExecutableElement> activeMethod =
+                        method instanceof ExecutableElement
+                                ? Optional.of((ExecutableElement) method)
+                                : Optional.empty();
+                return Optional.of(new MethodInvocation(invoke, activeMethod, activeParameter, results));
+            } else if (path.getLeaf() instanceof NewClassTree) {
+                NewClassTree invoke = (NewClassTree) path.getLeaf();
+                Element method = trees.getElement(path);
+                List<ExecutableElement> results = new ArrayList<>();
+                for (Element m : method.getEnclosingElement().getEnclosedElements()) {
+                    if (m.getKind() == ElementKind.CONSTRUCTOR) {
+                        results.add((ExecutableElement) m);
+                    }
+                }
+                int activeParameter = invoke.getArguments().indexOf(start.getLeaf());
+                Optional<ExecutableElement> activeMethod =
+                        method instanceof ExecutableElement
+                                ? Optional.of((ExecutableElement) method)
+                                : Optional.empty();
+                return Optional.of(new MethodInvocation(invoke, activeMethod, activeParameter, results));
             }
         }
-        return Collections.emptyList();
+        return Optional.empty();
     }
 
     /** Find the smallest element that includes the cursor */

@@ -188,9 +188,10 @@ public class JavaCompilerServiceTest {
 
     @Test
     public void overloads() {
-        List<ExecutableElement> found =
-                compiler.overloads(URI.create("/Overloads.java"), contents("/Overloads.java"), 3, 15);
+        MethodInvocation found =
+                compiler.methodInvocation(URI.create("/Overloads.java"), contents("/Overloads.java"), 3, 15).get();
 
-        assertThat(found, containsInAnyOrder(hasToString("print(int)"), hasToString("print(java.lang.String)")));
+        assertThat(
+                found.overloads, containsInAnyOrder(hasToString("print(int)"), hasToString("print(java.lang.String)")));
     }
 }
