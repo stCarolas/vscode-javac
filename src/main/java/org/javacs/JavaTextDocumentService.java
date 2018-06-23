@@ -42,13 +42,13 @@ class JavaTextDocumentService implements TextDocumentService {
             CompletionItem i = new CompletionItem();
             if (c.element != null) {
                 i.setLabel(c.element.getSimpleName().toString());
-                // TODO details
+                i.setDetail(c.element.toString());
             } else if (c.packagePart != null) {
                 i.setLabel(c.packagePart.name);
-                // TODO details
+                i.setDetail(c.packagePart.fullName);
             } else if (c.classSymbol != null) {
                 i.setLabel("class");
-                // TODO details
+                i.setDetail(c.classSymbol.toString());
             } else throw new RuntimeException(c + " is not valid");
 
             result.add(i);
