@@ -46,7 +46,11 @@ class JavaTextDocumentService implements TextDocumentService {
             } else if (c.packagePart != null) {
                 i.setLabel(c.packagePart.name);
                 // TODO details
-            }
+            } else if (c.classSymbol != null) {
+                i.setLabel(c.classSymbol.getSimpleName().toString());
+                // TODO details
+            } else throw new RuntimeException(c + " is not valid");
+
             result.add(i);
         }
         return CompletableFuture.completedFuture(Either.forRight(new CompletionList(false, result)));
