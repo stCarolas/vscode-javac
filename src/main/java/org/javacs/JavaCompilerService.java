@@ -330,9 +330,11 @@ public class JavaCompilerService {
                 DeclaredType thisDeclaredType = (DeclaredType) thisType;
                 Element thisElement = types.asElement(thisDeclaredType);
                 for (Element thisMember : thisElement.getEnclosedElements()) {
+                    if (isStatic(start) && !isStatic(thisMember)) continue;
+                    if (thisMember.getSimpleName().contentEquals("<init>")) continue;
+
                     // Check if member is accessible from original scope
-                    if (trees.isAccessible(start, thisMember, thisDeclaredType)
-                            && (!isStatic(start) || isStatic(thisMember))) {
+                    if (trees.isAccessible(start, thisMember, thisDeclaredType)) {
                         result.add(thisMember);
                     }
                 }
@@ -470,17 +472,18 @@ public class JavaCompilerService {
                 for (TypeMirror t : ts) {
                     Element e = types.asElement(t);
                     for (Element member : e.getEnclosedElements()) {
-                        if (!member.getModifiers().contains(Modifier.STATIC)) {
-                            // If type is a DeclaredType, check accessibility of member
-                            if (t instanceof DeclaredType) {
-                                if (trees.isAccessible(scope, member, (DeclaredType) t)) {
-                                    result.add(Completion.ofElement(member));
-                                }
+                        if (member.getModifiers().contains(Modifier.STATIC)) continue;
+                        if (member.getSimpleName().contentEquals("<init>")) continue;
+
+                        // If type is a DeclaredType, check accessibility of member
+                        if (t instanceof DeclaredType) {
+                            if (trees.isAccessible(scope, member, (DeclaredType) t)) {
+                                result.add(Completion.ofElement(member));
                             }
-                            // Otherwise, accessibility rules are very complicated
-                            // Give up and just declare that everything is accessible
-                            else result.add(Completion.ofElement(member));
                         }
+                        // Otherwise, accessibility rules are very complicated
+                        // Give up and just declare that everything is accessible
+                        else result.add(Completion.ofElement(member));
                     }
                 }
                 return result;
