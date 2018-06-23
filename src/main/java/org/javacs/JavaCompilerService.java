@@ -198,9 +198,7 @@ public class JavaCompilerService {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        List<Diagnostic<? extends JavaFileObject>> copy = new ArrayList<>();
-        Collections.copy(diags, copy);
-        return Collections.unmodifiableList(copy);
+        return Collections.unmodifiableList(new ArrayList<>(diags));
     }
 
     /** Stores the compiled version of a single file */

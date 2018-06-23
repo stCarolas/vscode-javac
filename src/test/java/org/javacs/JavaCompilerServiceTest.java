@@ -14,6 +14,8 @@ import java.util.*;
 import java.util.logging.*;
 import java.util.stream.Collectors;
 import javax.lang.model.element.*;
+import javax.tools.Diagnostic;
+import javax.tools.JavaFileObject;
 import org.junit.Test;
 
 public class JavaCompilerServiceTest {
@@ -34,6 +36,14 @@ public class JavaCompilerServiceTest {
         try (InputStream in = JavaCompilerServiceTest.class.getResourceAsStream(resourceFile)) {
             return new BufferedReader(new InputStreamReader(in)).lines().collect(Collectors.joining("\n"));
         } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private URI resourceUri(String resourceFile) {
+        try {
+            return JavaCompilerServiceTest.class.getResource(resourceFile).toURI();
+        } catch (URISyntaxException e) {
             throw new RuntimeException(e);
         }
     }
@@ -204,5 +214,12 @@ public class JavaCompilerServiceTest {
 
         assertThat(
                 found.overloads, containsInAnyOrder(hasToString("print(int)"), hasToString("print(java.lang.String)")));
+    }
+
+    @Test
+    public void lint() {
+        List<Diagnostic<? extends JavaFileObject>> diags =
+                compiler.lint(Collections.singleton(resourceUri("/HasError.java")));
+        assertThat(diags, not(empty()));
     }
 }
