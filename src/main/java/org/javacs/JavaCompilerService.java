@@ -403,16 +403,16 @@ public class JavaCompilerService {
             }
 
             return result;
-        } else if (element instanceof TypeElement) {
+        } else if (element instanceof TypeElement && !element.getSimpleName().toString().equals("<init>")) {
             List<Completion> result = new ArrayList<>();
             TypeElement t = (TypeElement) element;
-            Scope classScope = trees.getScope(trees.getPath(t));
-            while (classScope != null) {
-                for (Element e : classScope.getLocalElements()) {
-                    System.out.println(e);
-                }
-                classScope = classScope.getEnclosingScope();
-            }
+            //            Scope classScope = trees.getScope(trees.getPath(t));
+            //            while (classScope != null) {
+            //                for (Element e : classScope.getLocalElements()) {
+            //                    System.out.println(e);
+            //                }
+            //                classScope = classScope.getEnclosingScope();
+            //            }
 
             // Add static members
             for (Element member : t.getEnclosedElements()) {

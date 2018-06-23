@@ -47,7 +47,7 @@ class JavaTextDocumentService implements TextDocumentService {
                 i.setLabel(c.packagePart.name);
                 // TODO details
             } else if (c.classSymbol != null) {
-                i.setLabel(c.classSymbol.getSimpleName().toString());
+                i.setLabel("class");
                 // TODO details
             } else throw new RuntimeException(c + " is not valid");
 
