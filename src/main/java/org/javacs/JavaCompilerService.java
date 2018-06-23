@@ -2,6 +2,8 @@ package org.javacs;
 
 import com.google.common.base.StandardSystemProperty;
 import com.google.common.reflect.ClassPath;
+import com.sun.javadoc.ClassDoc;
+import com.sun.javadoc.MethodDoc;
 import com.sun.source.tree.*;
 import com.sun.source.util.*;
 import com.sun.tools.javac.api.JavacTool;
@@ -30,9 +32,10 @@ public class JavaCompilerService {
     private static final Logger LOG = Logger.getLogger("main");
 
     // Not modifiable! If you want to edit these, you need to create a new instance
-    private final Set<Path> sourcePath, classPath;
+    private final Set<Path> sourcePath, classPath, docPath;
     private final ClassPath classPathIndex;
     private final JavaCompiler compiler = JavacTool.create(); // TODO switch to java 9 mechanism
+    private final Javadocs docs;
     // Diagnostics from the last compilation task
     private final List<Diagnostic<? extends JavaFileObject>> diags = new ArrayList<>();
     // Use the same file manager for multiple tasks, so we don't repeatedly re-compile the same files
@@ -42,11 +45,26 @@ public class JavaCompilerService {
     // Since the user can only edit one file at a time, this should be sufficient
     private Cache cache;
 
-    public JavaCompilerService(Set<Path> sourcePath, Set<Path> classPath) {
+    public JavaCompilerService(Set<Path> sourcePath, Set<Path> classPath, Set<Path> docPath) {
+        LOG.info("Creating a new compiler...");
+        LOG.info("Source path:");
+        for (Path p : sourcePath) {
+            LOG.info("  " + p);
+        }
+        LOG.info("Class path:");
+        for (Path p : classPath) {
+            LOG.info("  " + p);
+        }
+        LOG.info("Doc path:");
+        for (Path p : docPath) {
+            LOG.info("  " + p);
+        }
         // sourcePath and classPath can't actually be modified, because JavaCompiler remembers them from task to task
         this.sourcePath = Collections.unmodifiableSet(sourcePath);
         this.classPath = Collections.unmodifiableSet(classPath);
+        this.docPath = docPath;
         this.classPathIndex = createClassPath(classPath);
+        this.docs = new Javadocs(sourcePath, docPath);
     }
 
     private static URL toUrl(Path path) {
@@ -623,6 +641,16 @@ public class JavaCompilerService {
         Element e = trees.getElement(path);
         TreePath t = trees.getPath(e);
         return Optional.ofNullable(t);
+    }
+
+    /** Look up the javadoc associated with `e` */
+    public Optional<MethodDoc> methodDoc(ExecutableElement e) {
+        return docs.methodDoc(e);
+    }
+
+    /** Look up the javadoc associated with `e` */
+    public Optional<ClassDoc> classDoc(TypeElement e) {
+        return docs.classDoc(e);
     }
 
     private Stream<Path> javaSourcesInDir(Path dir) {

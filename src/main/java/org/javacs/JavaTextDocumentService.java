@@ -1,5 +1,6 @@
 package org.javacs;
 
+import com.google.gson.JsonPrimitive;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.LineMap;
 import com.sun.source.util.SourcePositions;
@@ -18,6 +19,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import org.eclipse.lsp4j.*;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
@@ -31,6 +33,9 @@ class JavaTextDocumentService implements TextDocumentService {
         this.server = server;
     }
 
+    /** Cache of completions from the last call to `completion` */
+    private final Map<String, Completion> lastCompletions = new HashMap<>();
+
     @Override
     public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completion(CompletionParams position) {
         URI uri = URI.create(position.getTextDocument().getUri());
@@ -38,8 +43,12 @@ class JavaTextDocumentService implements TextDocumentService {
         int line = position.getPosition().getLine() + 1;
         int column = position.getPosition().getCharacter() + 1;
         List<CompletionItem> result = new ArrayList<>();
+        lastCompletions.clear();
         for (Completion c : server.compiler.completions(uri, content, line, column)) {
             CompletionItem i = new CompletionItem();
+            String id = UUID.randomUUID().toString();
+            i.setData(id);
+            lastCompletions.put(id, c);
             if (c.element != null) {
                 i.setLabel(c.element.getSimpleName().toString());
                 i.setDetail(c.element.toString());
@@ -58,6 +67,51 @@ class JavaTextDocumentService implements TextDocumentService {
 
     @Override
     public CompletableFuture<CompletionItem> resolveCompletionItem(CompletionItem unresolved) {
+        JsonPrimitive idJson = (JsonPrimitive) unresolved.getData();
+        String id = idJson.getAsString();
+        Completion cached = lastCompletions.get(id);
+        if (cached == null) {
+            LOG.warning("CompletionItem " + id + " was not in the cache");
+            return CompletableFuture.completedFuture(unresolved);
+        }
+        if (cached.element != null) {
+            if (cached.element instanceof ExecutableElement) {
+                ExecutableElement method = (ExecutableElement) cached.element;
+                server.compiler
+                        .methodDoc(method)
+                        .ifPresent(
+                                doc -> {
+                                    Javadocs.commentText(doc)
+                                            .ifPresent(
+                                                    html -> {
+                                                        String markdown = Javadocs.htmlToMarkdown(html);
+                                                        MarkupContent content = new MarkupContent();
+                                                        content.setKind(MarkupKind.MARKDOWN);
+                                                        content.setValue(markdown);
+                                                        unresolved.setDocumentation(content);
+                                                    });
+                                });
+            } else if (cached.element instanceof TypeElement) {
+                TypeElement type = (TypeElement) cached.element;
+                server.compiler
+                        .classDoc(type)
+                        .ifPresent(
+                                doc -> {
+                                    String html = doc.commentText();
+                                    String markdown = Javadocs.htmlToMarkdown(html);
+                                    MarkupContent content = new MarkupContent();
+                                    content.setKind(MarkupKind.MARKDOWN);
+                                    content.setValue(markdown);
+                                    unresolved.setDocumentation(content);
+                                });
+            } else {
+                LOG.info("Don't know how to look up docs for element " + cached.element);
+            }
+            // TODO constructors, fields
+        } else if (cached.classSymbol != null) {
+        } else if (cached.packagePart != null) {
+            // Nothing to do
+        }
         return CompletableFuture.completedFuture(unresolved); // TODO
     }
 
@@ -293,7 +347,9 @@ class JavaTextDocumentService implements TextDocumentService {
         if (isJava(uri)) {
             // Re-lint all active documents
             server.lint(activeDocuments.keySet());
-        } else server.updateConfig(uri);
+            // TODO update config when java file implies a new source root
+        }
+        // TODO update config when pom.xml changes
     }
 
     VersionedContent contents(URI openFile) {

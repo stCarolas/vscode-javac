@@ -2,7 +2,6 @@ package org.javacs;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
-import com.google.gson.JsonPrimitive;
 import com.overzealous.remark.Options;
 import com.overzealous.remark.Remark;
 import com.sun.javadoc.*;
@@ -12,7 +11,6 @@ import com.sun.tools.javac.file.JavacFileManager;
 import com.sun.tools.javadoc.api.JavadocTool;
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -20,18 +18,16 @@ import java.text.BreakIterator;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.tools.DocumentationTool;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardLocation;
-import org.eclipse.lsp4j.CompletionItem;
 
+// This class must be public so DocletInvoker can call it
 public class Javadocs {
 
     /** Cache for performance reasons */
@@ -55,12 +51,9 @@ public class Javadocs {
 
     private final JavacTask task;
 
-    private final Function<URI, Optional<String>> activeContent;
-
-    Javadocs(Set<Path> sourcePath, Set<Path> docPath, Function<URI, Optional<String>> activeContent) {
+    Javadocs(Set<Path> sourcePath, Set<Path> docPath) {
         this.actualFileManager = createFileManager(allSourcePaths(sourcePath, docPath));
         this.task = JavacTool.create().getTask(null, emptyFileManager, __ -> {}, null, null, null);
-        this.activeContent = activeContent;
     }
 
     private static Set<File> allSourcePaths(Set<Path>... userSourcePath) {
@@ -112,89 +105,46 @@ public class Javadocs {
         else return Optional.of(doc.commentText());
     }
 
-    Optional<? extends ProgramElementDoc> doc(Element el) {
-        if (el instanceof ExecutableElement) {
-            ExecutableElement method = (ExecutableElement) el;
+    // Figure out if elements and docs refer to the same thing, by computing String keys
 
-            return methodDoc(methodKey(method));
-        } else if (el instanceof TypeElement) {
-            TypeElement type = (TypeElement) el;
-
-            return classDoc(type.getQualifiedName().toString());
-        } else return Optional.empty();
-    }
-
-    String methodKey(ExecutableElement method) {
-        TypeElement classElement = (TypeElement) method.getEnclosingElement();
-
-        return String.format(
-                "%s#%s(%s)",
-                classElement.getQualifiedName(), method.getSimpleName(), paramsKey(method.getParameters()));
-    }
-
-    private String paramsKey(List<? extends VariableElement> params) {
-        return params.stream().map(this::paramType).collect(Collectors.joining(","));
-    }
-
-    Optional<MethodDoc> methodDoc(String methodKey) {
-        String className = methodKey.substring(0, methodKey.indexOf('#'));
-
-        return classDoc(className).flatMap(classDoc -> doMethodDoc(classDoc, methodKey));
-    }
-
-    private Optional<MethodDoc> doMethodDoc(ClassDoc classDoc, String methodKey) {
-        for (MethodDoc each : classDoc.methods(false)) {
-            if (methodMatches(methodKey, each)) return Optional.of(each);
-        }
-
-        return Optional.empty();
-    }
-
-    private boolean methodMatches(String methodKey, MethodDoc doc) {
-        String docKey =
-                String.format(
-                        "%s#%s(%s)",
-                        doc.containingClass().qualifiedName(), doc.name(), paramSignature(doc.parameters()));
-
-        return docKey.equals(methodKey);
-    }
-
-    private String paramSignature(Parameter[] params) {
-        return Arrays.stream(params).map(this::docType).collect(Collectors.joining(","));
-    }
-
-    private String paramType(VariableElement param) {
+    private String elementParamKey(VariableElement param) {
         return task.getTypes().erasure(param.asType()).toString();
     }
 
-    private String docType(Parameter doc) {
+    private String elementMethodKey(ExecutableElement method) {
+        TypeElement classElement = (TypeElement) method.getEnclosingElement();
+        String params = method.getParameters().stream().map(this::elementParamKey).collect(Collectors.joining(","));
+        return String.format("%s#%s(%s)", classElement.getQualifiedName(), method.getSimpleName(), params);
+    }
+
+    private String docParamKey(Parameter doc) {
         return doc.type().qualifiedTypeName() + doc.type().dimension();
     }
 
-    Optional<ConstructorDoc> constructorDoc(String methodKey) {
-        String className = methodKey.substring(0, methodKey.indexOf('#'));
-
-        return classDoc(className).flatMap(classDoc -> doConstructorDoc(classDoc, methodKey));
+    private String docMethodKey(MethodDoc doc) {
+        String params = Arrays.stream(doc.parameters()).map(this::docParamKey).collect(Collectors.joining(","));
+        return String.format("%s#%s(%s)", doc.containingClass().qualifiedName(), doc.name(), params);
     }
 
-    private Optional<ConstructorDoc> doConstructorDoc(ClassDoc classDoc, String methodKey) {
-        for (ConstructorDoc each : classDoc.constructors(false)) {
-            if (constructorMatches(methodKey, each)) return Optional.of(each);
+    Optional<MethodDoc> methodDoc(ExecutableElement method) {
+        String key = elementMethodKey(method);
+        TypeElement classElement = (TypeElement) method.getEnclosingElement();
+        String className = classElement.getQualifiedName().toString();
+        RootDoc rootDoc = index(className);
+        ClassDoc classDoc = rootDoc.classNamed(className);
+        if (classDoc == null) {
+            LOG.warning("No docs for class " + className);
+            return Optional.empty();
         }
-
+        for (MethodDoc each : classDoc.methods(false)) {
+            if (docMethodKey(each).equals(key)) return Optional.of(each);
+        }
         return Optional.empty();
     }
 
-    private boolean constructorMatches(String methodKey, ConstructorDoc doc) {
-        String docKey =
-                String.format("%s#<init>(%s)", doc.containingClass().qualifiedName(), paramSignature(doc.parameters()));
-
-        return docKey.equals(methodKey);
-    }
-
-    Optional<ClassDoc> classDoc(String className) {
+    Optional<ClassDoc> classDoc(TypeElement c) {
+        String className = c.getQualifiedName().toString();
         RootDoc index = index(className);
-
         return Optional.ofNullable(index.classNamed(className));
     }
 
@@ -211,13 +161,13 @@ public class Javadocs {
         IndexedDoc indexed = topLevelClasses.get(className);
 
         try {
-            JavaFileObject fromDisk =
+            JavaFileObject source =
                     actualFileManager.getJavaFileForInput(
                             StandardLocation.SOURCE_PATH, className, JavaFileObject.Kind.SOURCE);
 
-            if (fromDisk == null) return true;
+            if (source == null) return true;
 
-            Instant modified = Instant.ofEpochMilli(fromDisk.getLastModified());
+            Instant modified = Instant.ofEpochMilli(source.getLastModified());
 
             return indexed.updated.isBefore(modified);
         } catch (IOException e) {
@@ -228,16 +178,15 @@ public class Javadocs {
     /** Read all the Javadoc for `className` */
     private IndexedDoc doIndex(String className) {
         try {
-            JavaFileObject fromDisk =
+            JavaFileObject source =
                     actualFileManager.getJavaFileForInput(
                             StandardLocation.SOURCE_PATH, className, JavaFileObject.Kind.SOURCE);
 
-            if (fromDisk == null) {
+            if (source == null) {
                 LOG.warning("No source file for " + className);
 
                 return new IndexedDoc(EmptyRootDoc.INSTANCE, Instant.EPOCH);
             }
-            JavaFileObject source = activeFile(fromDisk);
 
             LOG.info("Found " + source.toUri() + " for " + className);
 
@@ -248,17 +197,10 @@ public class Javadocs {
             task.call();
 
             return new IndexedDoc(
-                    getSneakyReturn().orElse(EmptyRootDoc.INSTANCE), Instant.ofEpochMilli(fromDisk.getLastModified()));
+                    getSneakyReturn().orElse(EmptyRootDoc.INSTANCE), Instant.ofEpochMilli(source.getLastModified()));
         } catch (IOException e) {
             throw new RuntimeException();
         }
-    }
-
-    private JavaFileObject activeFile(JavaFileObject file) {
-        return activeContent
-                .apply(file.toUri())
-                .map(content -> (JavaFileObject) new StringFileObject(content, file.toUri()))
-                .orElse(file);
     }
 
     private Optional<RootDoc> getSneakyReturn() {
@@ -307,29 +249,6 @@ public class Javadocs {
             LOG.severe(String.format("Could not find %s", path));
 
             return Optional.empty();
-        }
-    }
-
-    public void resolveCompletionItem(CompletionItem unresolved) {
-        if (unresolved.getData() == null || unresolved.getDocumentation() != null) return;
-
-        JsonPrimitive keyJson = (JsonPrimitive) unresolved.getData();
-        String key = keyJson.getAsString();
-
-        LOG.info("Resolve javadoc for " + key);
-
-        // my.package.MyClass#<init>()
-        if (key.contains("<init>")) {
-            constructorDoc(key)
-                    .ifPresent(doc -> unresolved.setDocumentation(Javadocs.htmlToMarkdown(doc.commentText())));
-        }
-        // my.package.MyClass#myMethod()
-        else if (key.contains("#")) {
-            methodDoc(key).ifPresent(doc -> unresolved.setDocumentation(Javadocs.htmlToMarkdown(doc.commentText())));
-        }
-        // my.package.MyClass
-        else {
-            classDoc(key).ifPresent(doc -> unresolved.setDocumentation(Javadocs.htmlToMarkdown(doc.commentText())));
         }
     }
 

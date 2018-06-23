@@ -4,22 +4,17 @@ import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.sun.javadoc.MethodDoc;
 import com.sun.javadoc.RootDoc;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.Collections;
-import java.util.Optional;
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class JavadocsTest {
 
     private final Javadocs docs =
             new Javadocs(
-                    Collections.singleton(Paths.get("src/test/test-project/workspace/src")),
-                    Collections.emptySet(),
-                    __ -> Optional.empty());
+                    Collections.singleton(Paths.get("src/test/test-project/workspace/src")), Collections.emptySet());
 
     @Test
     public void findSrcZip() {
@@ -33,6 +28,7 @@ public class JavadocsTest {
         assertThat(root.classes(), not(emptyArray()));
     }
 
+    /*
     @Test
     public void findMethodDoc() {
         assertTrue(
@@ -74,4 +70,5 @@ public class JavadocsTest {
         assertTrue("Has inherited doc", docstring.isPresent());
         assertThat("Inherited doc is not empty", docstring.get(), not(isEmptyOrNullString()));
     }
+    */
 }

@@ -718,7 +718,7 @@ class Completions {
                         item.setCommand(TRIGGER_SIGNATURE_HELP);
                         item.setFilterText(name);
                         item.setSortText("1/" + name);
-                        item.setData(docs.methodKey(method));
+                        // item.setData(docs.methodKey(method));
 
                         return Stream.of(item);
                     }
@@ -745,7 +745,7 @@ class Completions {
                         item.setFilterText(name);
                         item.setAdditionalTextEdits(addImport(enclosingClass.getQualifiedName().toString()));
                         item.setSortText(order + "/" + name);
-                        item.setData(docs.methodKey(method));
+                        // item.setData(docs.methodKey(method));
 
                         return Stream.of(item);
                     }

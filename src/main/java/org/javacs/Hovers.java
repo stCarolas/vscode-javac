@@ -16,7 +16,7 @@ import org.eclipse.lsp4j.jsonrpc.messages.Either;
 public class Hovers {
 
     public static Hover hoverText(Element el, Javadocs docs) {
-        Optional<String> doc = docs.doc(el).map(Hovers::commentText).map(Javadocs::htmlToMarkdown);
+        Optional<String> doc = Optional.empty(); // docs.doc(el).map(Hovers::commentText).map(Javadocs::htmlToMarkdown);
         String sig = signature(el);
         String result = doc.map(text -> String.format("```java\n%s\n```\n%s", sig, text)).orElse(sig);
 

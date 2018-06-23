@@ -3,6 +3,7 @@ package org.javacs;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
 
+import com.sun.javadoc.MethodDoc;
 import com.sun.source.tree.*;
 import com.sun.source.util.*;
 import java.io.*;
@@ -22,7 +23,8 @@ public class JavaCompilerServiceTest {
     private static final Logger LOG = Logger.getLogger("main");
 
     private JavaCompilerService compiler =
-            new JavaCompilerService(Collections.singleton(resourcesDir()), Collections.emptySet());
+            new JavaCompilerService(
+                    Collections.singleton(resourcesDir()), Collections.emptySet(), Collections.emptySet());
 
     private static Path resourcesDir() {
         try {
@@ -221,5 +223,17 @@ public class JavaCompilerServiceTest {
         List<Diagnostic<? extends JavaFileObject>> diags =
                 compiler.lint(Collections.singleton(resourceUri("/HasError.java")));
         assertThat(diags, not(empty()));
+    }
+
+    @Test
+    public void localDoc() {
+        ExecutableElement method =
+                compiler.methodInvocation(URI.create("/LocalMethodDoc.java"), contents("/LocalMethodDoc.java"), 3, 21)
+                        .get()
+                        .activeMethod
+                        .get();
+        Optional<MethodDoc> doc = compiler.methodDoc(method);
+        assertTrue(doc.isPresent());
+        assertThat(Javadocs.commentText(doc.get()).orElse("<empty>"), containsString("A great method"));
     }
 }

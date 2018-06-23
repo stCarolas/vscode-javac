@@ -81,12 +81,8 @@ class JavaLanguageServer implements LanguageServer {
     private JavaCompilerService createCompiler() {
         Objects.requireNonNull(workspaceRoot, "Can't create compiler because workspaceRoot has not been initialized");
         InferConfig infer = new InferConfig(workspaceRoot);
-        return new JavaCompilerService(Collections.emptySet(), infer.classPath());
-    }
-
-    void updateConfig(URI configFile) {
-        LOG.info(String.format("Update classpath and sourcepath because %s changed", configFile));
-        this.compiler = createCompiler();
+        return new JavaCompilerService(
+                InferSourcePath.sourcePath(workspaceRoot), infer.classPath(), infer.buildDocPath());
     }
 
     @Override

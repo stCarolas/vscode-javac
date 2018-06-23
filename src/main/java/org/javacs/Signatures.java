@@ -91,7 +91,7 @@ class Signatures {
     }
 
     private SignatureInformation constructorInfo(ExecutableElement method) {
-        Optional<ConstructorDoc> doc = docs.constructorDoc(docs.methodKey(method));
+        Optional<ConstructorDoc> doc = Optional.empty(); // docs.constructorDoc(docs.methodKey(method));
         Optional<String> docText =
                 doc.flatMap(constructor -> Optional.ofNullable(constructor.commentText()))
                         .map(Javadocs::htmlToMarkdown)
@@ -102,7 +102,7 @@ class Signatures {
     }
 
     private SignatureInformation methodInfo(ExecutableElement method) {
-        Optional<MethodDoc> doc = docs.methodDoc(docs.methodKey(method));
+        Optional<MethodDoc> doc = Optional.empty(); // docs.methodDoc(docs.methodKey(method));
         Optional<String> docText =
                 doc.flatMap(Javadocs::commentText).map(Javadocs::htmlToMarkdown).map(Javadocs::firstSentence);
 
