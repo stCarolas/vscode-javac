@@ -130,6 +130,17 @@ public class JavaCompilerServiceTest {
     }
 
     @Test
+    public void completeExpression() {
+        List<Completion> found =
+                compiler.completions(
+                        URI.create("/CompleteExpression.java"), contents("/CompleteExpression.java"), 3, 37);
+        List<String> names = completionNames(found);
+        assertThat(names, hasItem("instanceMethod"));
+        assertThat(names, not(hasItem("create")));
+        assertThat(names, hasItem("equals"));
+    }
+
+    @Test
     public void completeClass() {
         List<Completion> found =
                 compiler.completions(URI.create("/CompleteClass.java"), contents("/CompleteClass.java"), 3, 23);

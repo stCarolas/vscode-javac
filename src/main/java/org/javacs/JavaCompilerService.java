@@ -370,6 +370,35 @@ public class JavaCompilerService {
         return result;
     }
 
+    private boolean hasMembers(TypeMirror type) {
+        switch (type.getKind()) {
+            case ARRAY:
+            case DECLARED:
+            case ERROR:
+            case TYPEVAR:
+            case WILDCARD:
+            case UNION:
+            case INTERSECTION:
+                return true;
+            case BOOLEAN:
+            case BYTE:
+            case SHORT:
+            case INT:
+            case LONG:
+            case CHAR:
+            case FLOAT:
+            case DOUBLE:
+            case VOID:
+            case NONE:
+            case NULL:
+            case PACKAGE:
+            case EXECUTABLE:
+            case OTHER:
+            default:
+                return false;
+        }
+    }
+
     /** Find all members of expression ending at line:character */
     public List<Completion> members(URI file, String contents, int line, int character) {
         recompile(file, contents, line, character);
@@ -403,16 +432,9 @@ public class JavaCompilerService {
             }
 
             return result;
-        } else if (element instanceof TypeElement && !element.getSimpleName().toString().equals("<init>")) {
+        } else if (element instanceof TypeElement) {
             List<Completion> result = new ArrayList<>();
             TypeElement t = (TypeElement) element;
-            //            Scope classScope = trees.getScope(trees.getPath(t));
-            //            while (classScope != null) {
-            //                for (Element e : classScope.getLocalElements()) {
-            //                    System.out.println(e);
-            //                }
-            //                classScope = classScope.getEnclosingScope();
-            //            }
 
             // Add static members
             for (Element member : t.getEnclosedElements()) {
@@ -427,23 +449,31 @@ public class JavaCompilerService {
 
             return result;
         } else {
-            List<Completion> result = new ArrayList<>();
-            List<TypeMirror> ts = supersWithSelf(element.asType());
-            for (TypeMirror t : ts) {
-                Element e = types.asElement(t);
-                for (Element member : e.getEnclosedElements()) {
-                    // If type is a DeclaredType, check accessibility of member
-                    if (t instanceof DeclaredType) {
-                        if (trees.isAccessible(scope, member, (DeclaredType) t)) {
-                            result.add(Completion.ofElement(member));
+            TypeMirror type = trees.getTypeMirror(path);
+            if (hasMembers(type)) {
+                List<Completion> result = new ArrayList<>();
+                List<TypeMirror> ts = supersWithSelf(type);
+                for (TypeMirror t : ts) {
+                    Element e = types.asElement(t);
+                    for (Element member : e.getEnclosedElements()) {
+                        if (!member.getModifiers().contains(Modifier.STATIC)) {
+                            // If type is a DeclaredType, check accessibility of member
+                            if (t instanceof DeclaredType) {
+                                if (trees.isAccessible(scope, member, (DeclaredType) t)) {
+                                    result.add(Completion.ofElement(member));
+                                }
+                            }
+                            // Otherwise, accessibility rules are very complicated
+                            // Give up and just declare that everything is accessible
+                            else result.add(Completion.ofElement(member));
                         }
                     }
-                    // Otherwise, accessibility rules are very complicated
-                    // Give up and just declare that everything is accessible
-                    else result.add(Completion.ofElement(member));
                 }
+                return result;
+            } else {
+                LOG.warning("Don't know how to complete members of type " + type);
+                return Collections.emptyList();
             }
-            return result;
         }
     }
 
