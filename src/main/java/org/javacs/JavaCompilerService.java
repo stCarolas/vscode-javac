@@ -303,6 +303,17 @@ public class JavaCompilerService {
         class Walk {
             List<Element> result = new ArrayList<>();
 
+            boolean isStatic(Scope s) {
+                ExecutableElement method = s.getEnclosingMethod();
+                if (method != null) {
+                    return method.getModifiers().contains(Modifier.STATIC);
+                } else return false;
+            }
+
+            boolean isStatic(Element e) {
+                return e.getModifiers().contains(Modifier.STATIC);
+            }
+
             boolean isThisOrSuper(VariableElement ve) {
                 String name = ve.getSimpleName().toString();
                 return name.equals("this") || name.equals("super");
@@ -320,7 +331,8 @@ public class JavaCompilerService {
                 Element thisElement = types.asElement(thisDeclaredType);
                 for (Element thisMember : thisElement.getEnclosedElements()) {
                     // Check if member is accessible from original scope
-                    if (trees.isAccessible(start, thisMember, thisDeclaredType)) {
+                    if (trees.isAccessible(start, thisMember, thisDeclaredType)
+                            && (!isStatic(start) || isStatic(thisMember))) {
                         result.add(thisMember);
                     }
                 }
@@ -334,9 +346,11 @@ public class JavaCompilerService {
                         if (trees.isAccessible(start, te)) result.add(te);
                     } else if (e instanceof VariableElement) {
                         VariableElement ve = (VariableElement) e;
-                        result.add(ve);
                         if (isThisOrSuper(ve)) {
                             unwrapThisSuper(ve);
+                            if (!isStatic(s)) result.add(ve);
+                        } else {
+                            result.add(ve);
                         }
                     } else {
                         result.add(e);
