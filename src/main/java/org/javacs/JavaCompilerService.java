@@ -486,11 +486,16 @@ public class JavaCompilerService {
             if (hasMembers(type)) {
                 List<Completion> result = new ArrayList<>();
                 List<TypeMirror> ts = supersWithSelf(type);
+                Set<String> alreadyAdded = new HashSet<>();
                 for (TypeMirror t : ts) {
                     Element e = types.asElement(t);
                     for (Element member : e.getEnclosedElements()) {
+                        // Don't add statics
                         if (member.getModifiers().contains(Modifier.STATIC)) continue;
+                        // Don't add constructors
                         if (member.getSimpleName().contentEquals("<init>")) continue;
+                        // Skip overridden members from superclass
+                        if (alreadyAdded.contains(member.toString())) continue;
 
                         // If type is a DeclaredType, check accessibility of member
                         if (t instanceof DeclaredType) {
@@ -501,6 +506,8 @@ public class JavaCompilerService {
                         // Otherwise, accessibility rules are very complicated
                         // Give up and just declare that everything is accessible
                         else result.add(Completion.ofElement(member));
+                        // Remember the signature of the added method, so we don't re-add it later
+                        alreadyAdded.add(member.toString());
                     }
                 }
                 return result;
