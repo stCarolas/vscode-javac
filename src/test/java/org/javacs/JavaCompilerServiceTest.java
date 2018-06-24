@@ -250,7 +250,7 @@ public class JavaCompilerServiceTest {
     @Test
     public void lint() {
         List<Diagnostic<? extends JavaFileObject>> diags =
-                compiler.lint(Collections.singleton(resourceUri("/HasError.java")));
+                compiler.lint(Collections.singleton(Paths.get(resourceUri("/HasError.java"))));
         assertThat(diags, not(empty()));
     }
 

@@ -72,10 +72,10 @@ class JavaLanguageServer implements LanguageServer {
         }
     }
 
-    void lint(Collection<URI> paths) {
-        LOG.info("Lint " + paths.stream().map(uri -> uri.toString()).collect(Collectors.joining(", ")));
-
-        publishDiagnostics(paths, compiler.lint(paths));
+    void lint(Collection<URI> uris) {
+        LOG.info("Lint " + uris.stream().map(uri -> uri.toString()).collect(Collectors.joining(", ")));
+        List<Path> paths = uris.stream().map(uri -> Paths.get(uri)).collect(Collectors.toList());
+        publishDiagnostics(uris, compiler.lint(paths));
     }
 
     private JavaCompilerService createCompiler() {

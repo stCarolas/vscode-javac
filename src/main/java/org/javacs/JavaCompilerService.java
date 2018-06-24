@@ -196,9 +196,9 @@ public class JavaCompilerService {
                         Collections.singletonList(new StringFileObject(contents, file)));
     }
 
-    private JavacTask batchTask(Collection<URI> paths) {
+    private JavacTask batchTask(Collection<Path> paths) {
         diags.clear();
-        List<File> files = paths.stream().map(f -> Paths.get(f).toFile()).collect(Collectors.toList());
+        List<File> files = paths.stream().map(Path::toFile).collect(Collectors.toList());
         return (JavacTask)
                 compiler.getTask(
                         null,
@@ -209,7 +209,7 @@ public class JavaCompilerService {
                         fileManager.getJavaFileObjectsFromFiles(files));
     }
 
-    List<Diagnostic<? extends JavaFileObject>> lint(Collection<URI> files) {
+    List<Diagnostic<? extends JavaFileObject>> lint(Collection<Path> files) {
         JavacTask task = batchTask(files);
         try {
             task.parse();
@@ -720,7 +720,7 @@ public class JavaCompilerService {
         return sourcePath.stream().flatMap(dir -> javaSourcesInDir(dir));
     }
 
-    private List<URI> potentialReferences(Element to) {
+    private List<Path> potentialReferences(Element to) {
         String name = to.getSimpleName().toString();
         Pattern word = Pattern.compile("\\b\\w+\\b");
         Predicate<String> containsWord =
@@ -739,7 +739,7 @@ public class JavaCompilerService {
                         throw new RuntimeException(e);
                     }
                 };
-        return javaSources().filter(test).map(p -> p.toUri()).collect(Collectors.toList());
+        return javaSources().filter(test).collect(Collectors.toList());
     }
 
     /**
@@ -793,7 +793,7 @@ public class JavaCompilerService {
         }
     }
 
-    private Batch compileBatch(List<URI> files) {
+    private Batch compileBatch(List<Path> files) {
         JavacTask task = batchTask(files);
 
         List<CompilationUnitTree> result = new ArrayList<>();
@@ -813,7 +813,7 @@ public class JavaCompilerService {
         Trees trees = Trees.instance(cache.task);
         TreePath path = path(file, line, character);
         Element to = trees.getElement(path);
-        List<URI> possible = potentialReferences(to);
+        List<Path> possible = potentialReferences(to);
         Batch batch = compileBatch(possible);
         List<TreePath> result = new ArrayList<>();
         for (CompilationUnitTree f : batch.roots) {
