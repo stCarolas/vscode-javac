@@ -1,11 +1,7 @@
 package org.javacs;
 
-import com.sun.source.tree.CompilationUnitTree;
-import com.sun.source.util.JavacTask;
-import com.sun.tools.javac.api.JavacTool;
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.nio.file.*;
 import java.util.*;
 import java.util.function.Consumer;
@@ -14,31 +10,6 @@ import java.util.stream.*;
 import javax.tools.*;
 
 class InferSourcePath {
-
-    private static final JavacTool compiler = JavacTool.create(); // TODO switch to java 9 mechanism
-    private static final StandardJavaFileManager fileManager =
-            compiler.getStandardFileManager(__ -> {}, null, Charset.defaultCharset());
-
-    private static JavacTask parseTask(Path source) {
-        JavaFileObject file =
-                fileManager.getJavaFileObjectsFromFiles(Collections.singleton(source.toFile())).iterator().next();
-
-        return compiler.getTask(
-                null,
-                fileManager,
-                err -> LOG.warning(err.getMessage(Locale.getDefault())),
-                Collections.emptyList(),
-                null,
-                Collections.singletonList(file));
-    }
-
-    private static CompilationUnitTree parse(Path source) {
-        try {
-            return parseTask(source).parse().iterator().next();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     private static Stream<Path> allJavaFiles(Path dir) {
         PathMatcher match = FileSystems.getDefault().getPathMatcher("glob:*.java");
@@ -63,7 +34,7 @@ class InferSourcePath {
             }
 
             Optional<Path> infer(Path java) {
-                String packageName = Objects.toString(parse(java).getPackageName(), "");
+                String packageName = Objects.toString(Parser.parse(java).getPackageName(), "");
                 String packagePath = packageName.replace('.', File.separatorChar);
                 Path dir = java.getParent();
                 if (!dir.endsWith(packagePath)) {

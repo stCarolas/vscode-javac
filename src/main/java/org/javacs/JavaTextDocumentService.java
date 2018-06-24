@@ -221,7 +221,14 @@ class JavaTextDocumentService implements TextDocumentService {
 
     @Override
     public CompletableFuture<List<? extends SymbolInformation>> documentSymbol(DocumentSymbolParams params) {
-        return null; // TODO
+        URI uri = URI.create(params.getTextDocument().getUri());
+        String content = contents(uri).content;
+        List<SymbolInformation> result =
+                Parser.documentSymbols(Paths.get(uri), content)
+                        .stream()
+                        .map(Parser::asSymbolInformation)
+                        .collect(Collectors.toList());
+        return CompletableFuture.completedFuture(result);
     }
 
     @Override

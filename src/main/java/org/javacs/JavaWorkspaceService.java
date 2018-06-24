@@ -1,8 +1,10 @@
 package org.javacs;
 
+import com.sun.source.tree.*;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import org.eclipse.lsp4j.*;
 import org.eclipse.lsp4j.services.WorkspaceService;
 
@@ -22,7 +24,13 @@ class JavaWorkspaceService implements WorkspaceService {
 
     @Override
     public CompletableFuture<List<? extends SymbolInformation>> symbol(WorkspaceSymbolParams params) {
-        return null; // TODO
+        List<SymbolInformation> list =
+                server.compiler
+                        .findSymbols(params.getQuery())
+                        .map(Parser::asSymbolInformation)
+                        .limit(50)
+                        .collect(Collectors.toList());
+        return CompletableFuture.completedFuture(list);
     }
 
     @Override

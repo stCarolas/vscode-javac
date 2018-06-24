@@ -822,6 +822,10 @@ public class JavaCompilerService {
         return result;
     }
 
+    public Stream<TreePath> findSymbols(String query) {
+        return sourcePath.stream().flatMap(dir -> Parser.findSymbols(dir, query));
+    }
+
     public Trees trees() {
         return Trees.instance(cache.task);
     }
