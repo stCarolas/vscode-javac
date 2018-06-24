@@ -206,10 +206,14 @@ class JavaTextDocumentService implements TextDocumentService {
 
     private List<ParameterInformation> signatureParamsFromDocs(MethodDoc doc) {
         List<ParameterInformation> ps = new ArrayList<>();
+        Map<String, String> paramComments = new HashMap<>();
+        for (ParamTag t : doc.paramTags()) {
+            paramComments.put(t.parameterName(), t.parameterComment());
+        }
         for (Parameter d : doc.parameters()) {
             ParameterInformation p = new ParameterInformation();
             p.setLabel(d.name());
-            // TODO look up docs in paramTags
+            p.setDocumentation(paramComments.get(d.name()));
             ps.add(p);
         }
         return ps;
