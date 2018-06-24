@@ -106,6 +106,22 @@ public class JavaCompilerServiceTest {
     }
 
     @Test
+    public void identifiersInMiddle() {
+        List<Element> found =
+                compiler.scopeMembers(URI.create("/CompleteInMiddle.java"), contents("/CompleteInMiddle.java"), 13, 21);
+        List<String> names = elementNames(found);
+        assertThat(names, hasItem("completeLocal"));
+        assertThat(names, hasItem("completeParam"));
+        assertThat(names, hasItem("super"));
+        assertThat(names, hasItem("this"));
+        assertThat(names, hasItem("completeOtherMethod"));
+        assertThat(names, hasItem("completeInnerField"));
+        assertThat(names, hasItem("completeOuterField"));
+        assertThat(names, hasItem("completeOuterStatic"));
+        assertThat(names, hasItem("CompleteInMiddle"));
+    }
+
+    @Test
     public void completeIdentifiers() {
         List<Completion> found =
                 compiler.completions(
