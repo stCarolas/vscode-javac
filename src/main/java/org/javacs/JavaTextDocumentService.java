@@ -1,11 +1,9 @@
 package org.javacs;
 
 import com.google.gson.JsonPrimitive;
-import com.sun.source.tree.CompilationUnitTree;
-import com.sun.source.tree.LineMap;
-import com.sun.source.util.SourcePositions;
-import com.sun.source.util.TreePath;
-import com.sun.source.util.Trees;
+import com.sun.javadoc.*;
+import com.sun.source.tree.*;
+import com.sun.source.util.*;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.StringReader;
@@ -49,7 +47,7 @@ class JavaTextDocumentService implements TextDocumentService {
             lastCompletions.put(id, c);
             if (c.element != null) {
                 i.setLabel(c.element.getSimpleName().toString());
-                i.setDetail(c.element.toString());
+                // Detailed name will be resolved later, using docs to fill in method names
             } else if (c.packagePart != null) {
                 i.setLabel(c.packagePart.name);
                 i.setDetail(c.packagePart.fullName);
@@ -66,6 +64,25 @@ class JavaTextDocumentService implements TextDocumentService {
         return CompletableFuture.completedFuture(Either.forRight(new CompletionList(completions.isIncomplete, result)));
     }
 
+    private String resolveDocDetail(MethodDoc doc) {
+        StringJoiner args = new StringJoiner(", ");
+        for (Parameter p : doc.parameters()) {
+            args.add(p.name());
+        }
+        return String.format("%s(%s)", doc.name(), args);
+    }
+
+    private String resolveDefaultDetail(ExecutableElement method) {
+        StringJoiner args = new StringJoiner(", ");
+        boolean missingParamNames =
+                method.getParameters().stream().allMatch(p -> p.getSimpleName().toString().matches("arg\\d+"));
+        for (VariableElement p : method.getParameters()) {
+            if (missingParamNames) args.add(p.asType().toString());
+            else args.add(p.getSimpleName().toString());
+        }
+        return String.format("%s(%s)", method.getSimpleName(), args);
+    }
+
     @Override
     public CompletableFuture<CompletionItem> resolveCompletionItem(CompletionItem unresolved) {
         JsonPrimitive idJson = (JsonPrimitive) unresolved.getData();
@@ -78,9 +95,10 @@ class JavaTextDocumentService implements TextDocumentService {
         if (cached.element != null) {
             if (cached.element instanceof ExecutableElement) {
                 ExecutableElement method = (ExecutableElement) cached.element;
-                server.compiler
-                        .methodDoc(method)
-                        .flatMap(Javadocs::commentText)
+                Optional<MethodDoc> doc = server.compiler.methodDoc(method);
+                String detail = doc.map(this::resolveDocDetail).orElse(resolveDefaultDetail(method));
+                unresolved.setDetail(detail);
+                doc.flatMap(Javadocs::commentText)
                         .ifPresent(
                                 html -> {
                                     String markdown = Javadocs.htmlToMarkdown(html);
@@ -186,18 +204,35 @@ class JavaTextDocumentService implements TextDocumentService {
         } else return CompletableFuture.completedFuture(new Hover(Collections.emptyList()));
     }
 
-    private SignatureInformation asSignatureInformation(ExecutableElement e) {
-        SignatureInformation i = new SignatureInformation();
+    private List<ParameterInformation> signatureParamsFromDocs(MethodDoc doc) {
         List<ParameterInformation> ps = new ArrayList<>();
-        StringJoiner args = new StringJoiner(", ");
-        for (VariableElement v : e.getParameters()) {
+        for (Parameter d : doc.parameters()) {
             ParameterInformation p = new ParameterInformation();
-            String label = v.getSimpleName().toString();
-            // TODO use type when name is not available
-            args.add(label);
-            p.setLabel(label);
+            p.setLabel(d.name());
+            // TODO look up docs in paramTags
             ps.add(p);
         }
+        return ps;
+    }
+
+    private List<ParameterInformation> signatureParamsFromMethod(ExecutableElement e) {
+        boolean missingParamNames =
+                e.getParameters().stream().allMatch(p -> p.getSimpleName().toString().matches("arg\\d+"));
+        List<ParameterInformation> ps = new ArrayList<>();
+        for (VariableElement v : e.getParameters()) {
+            ParameterInformation p = new ParameterInformation();
+            if (missingParamNames) p.setLabel(v.asType().toString());
+            else p.setLabel(v.getSimpleName().toString());
+            ps.add(p);
+        }
+        return ps;
+    }
+
+    private SignatureInformation asSignatureInformation(ExecutableElement e) {
+        SignatureInformation i = new SignatureInformation();
+        Optional<MethodDoc> doc = server.compiler.methodDoc(e);
+        List<ParameterInformation> ps = doc.map(this::signatureParamsFromDocs).orElse(signatureParamsFromMethod(e));
+        String args = ps.stream().map(p -> p.getLabel()).collect(Collectors.joining(", "));
         String name = e.getSimpleName().toString();
         if (name.equals("<init>")) name = e.getEnclosingElement().getSimpleName().toString();
         i.setLabel(name + "(" + args + ")");
