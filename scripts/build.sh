@@ -8,7 +8,7 @@ set -e
 npm install
 
 # Build fat jar
-mvn package 
+mvn package -DskipTests
 
 # Build vsix
 vsce package -o build.vsix

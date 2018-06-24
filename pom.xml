@@ -24,7 +24,6 @@
     </distributionManagement>
     <properties>
         <jackson-2-version>2.5.0</jackson-2-version>
-        <jersey-2-version>2.10</jersey-2-version>
     </properties>
     <dependencies>
         <dependency>
@@ -74,7 +73,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>23.4-jre</version>
+            <version>25.1-jre</version>
         </dependency>
         <!-- HTML-to-markdown -->
         <dependency>
