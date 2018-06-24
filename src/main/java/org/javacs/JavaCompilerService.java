@@ -30,12 +30,12 @@ import javax.tools.*;
 
 public class JavaCompilerService {
     private static final Logger LOG = Logger.getLogger("main");
-
     // Not modifiable! If you want to edit these, you need to create a new instance
     private final Set<Path> sourcePath, classPath, docPath;
     private final ClassPath classPathIndex;
     private final JavaCompiler compiler = JavacTool.create(); // TODO switch to java 9 mechanism
     private final Javadocs docs;
+    private final ClassPathIndex classes;
     // Diagnostics from the last compilation task
     private final List<Diagnostic<? extends JavaFileObject>> diags = new ArrayList<>();
     // Use the same file manager for multiple tasks, so we don't repeatedly re-compile the same files
@@ -65,6 +65,7 @@ public class JavaCompilerService {
         this.docPath = docPath;
         this.classPathIndex = createClassPath(classPath);
         this.docs = new Javadocs(sourcePath, docPath);
+        this.classes = new ClassPathIndex(classPath);
     }
 
     private static URL toUrl(Path path) {
@@ -307,7 +308,32 @@ public class JavaCompilerService {
         return trees.getPath(cache.root, found);
     }
 
-    /** Find all identifiers accessible from scope at line:character */
+    private String scopePackage(Scope scope) {
+        Element e = scope.getEnclosingClass();
+        while (e != null) {
+            Element next = e.getEnclosingElement();
+            if (next instanceof PackageElement) {
+                PackageElement p = (PackageElement) next;
+                return p.getQualifiedName().toString();
+            }
+            e = e.getEnclosingElement();
+        }
+        return "";
+    }
+
+    /** Find all identifiers that haven't yet been imported, but are accessible from scope at line:character */
+    public Stream<ClassPath.ClassInfo> notImported(URI file, String contents, int line, int character) {
+        recompile(file, contents, line, character);
+
+        Trees trees = Trees.instance(cache.task);
+        TreePath path = path(file, line, character);
+        Scope scope = trees.getScope(path);
+        String packageName = scopePackage(scope);
+
+        return classes.topLevelClasses().filter(c -> classes.isAccessibleFromPackage(c, packageName));
+    }
+
+    /** Find all identifiers in scope at line:character */
     public List<Element> scopeMembers(URI file, String contents, int line, int character) {
         recompile(file, contents, line, character);
 
@@ -514,7 +540,7 @@ public class JavaCompilerService {
      * Complete members or identifiers at the cursor. Delegates to `members` or `scopeMembers`, depending on whether the
      * expression before the cursor looks like `foo.bar` or `foo`
      */
-    public List<Completion> completions(URI file, String contents, int line, int character) {
+    public CompletionResult completions(URI file, String contents, int line, int character, int limitHint) {
         JavacTask task = singleFileTask(file, contents);
         CompilationUnitTree parse;
         try {
@@ -528,6 +554,7 @@ public class JavaCompilerService {
 
         class Find extends TreeScanner<Void, Void> {
             List<Completion> result = null;
+            boolean isIncomplete = false;
 
             boolean containsCursor(Tree node) {
                 return pos.getStartPosition(parse, node) <= cursor && cursor <= pos.getEndPosition(parse, node);
@@ -565,17 +592,41 @@ public class JavaCompilerService {
 
                 if (containsCursor(node) && result == null) {
                     result = new ArrayList<>();
+                    // Does a candidate completion match the name in `node`?
+                    String id = Objects.toString(node.getName(), "");
+                    Predicate<CharSequence> matches = name -> name.toString().startsWith(id);
+                    Set<String> alreadyImported = new HashSet<>();
+                    // Add names that have already been imported
                     for (Element m : scopeMembers(file, contents, line, character)) {
-                        result.add(Completion.ofElement(m));
+                        if (matches.test(m.getSimpleName())) {
+                            result.add(Completion.ofElement(m));
+
+                            if (m instanceof TypeElement) {
+                                TypeElement t = (TypeElement) m;
+                                alreadyImported.add(t.getQualifiedName().toString());
+                            }
+                        }
                     }
+                    // Add names of classes that haven't been imported
+                    Iterator<Completion> notImported =
+                            notImported(file, contents, line, character)
+                                    .filter(c -> matches.test(c.getSimpleName()))
+                                    .filter(c -> !alreadyImported.contains(c.getName()))
+                                    .map(Completion::ofNotImportedClass)
+                                    .iterator();
+                    while (notImported.hasNext() && result.size() < limitHint) {
+                        result.add(notImported.next());
+                    }
+                    isIncomplete = notImported.hasNext();
                 }
                 return null;
             }
 
-            List<Completion> run() {
+            CompletionResult run() {
                 scan(parse, null);
-                if (result != null) return result;
-                else return Collections.emptyList();
+                if (result == null) result = Collections.emptyList();
+                if (isIncomplete) LOG.info(String.format("Found %d items (incomplete)", result.size()));
+                return new CompletionResult(result, isIncomplete);
             }
         }
         return new Find().run();

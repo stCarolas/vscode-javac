@@ -44,7 +44,8 @@ class JavaTextDocumentService implements TextDocumentService {
         int column = position.getPosition().getCharacter() + 1;
         List<CompletionItem> result = new ArrayList<>();
         lastCompletions.clear();
-        for (Completion c : server.compiler.completions(uri, content, line, column)) {
+        CompletionResult completions = server.compiler.completions(uri, content, line, column, 50);
+        for (Completion c : completions.items) {
             CompletionItem i = new CompletionItem();
             String id = UUID.randomUUID().toString();
             i.setData(id);
@@ -58,11 +59,14 @@ class JavaTextDocumentService implements TextDocumentService {
             } else if (c.classSymbol != null) {
                 i.setLabel("class");
                 i.setDetail(c.classSymbol.toString());
+            } else if (c.notImportedClass != null) {
+                i.setLabel(c.notImportedClass.getSimpleName());
+                i.setDetail(c.notImportedClass.getName());
             } else throw new RuntimeException(c + " is not valid");
 
             result.add(i);
         }
-        return CompletableFuture.completedFuture(Either.forRight(new CompletionList(false, result)));
+        return CompletableFuture.completedFuture(Either.forRight(new CompletionList(completions.isIncomplete, result)));
     }
 
     @Override
@@ -108,9 +112,6 @@ class JavaTextDocumentService implements TextDocumentService {
                 LOG.info("Don't know how to look up docs for element " + cached.element);
             }
             // TODO constructors, fields
-        } else if (cached.classSymbol != null) {
-        } else if (cached.packagePart != null) {
-            // Nothing to do
         }
         return CompletableFuture.completedFuture(unresolved); // TODO
     }

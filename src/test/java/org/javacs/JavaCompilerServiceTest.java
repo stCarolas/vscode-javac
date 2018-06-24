@@ -79,6 +79,7 @@ public class JavaCompilerServiceTest {
             if (c.element != null) result.add(c.element.getSimpleName().toString());
             else if (c.packagePart != null) result.add(c.packagePart.name);
             else if (c.classSymbol != null) result.add("class");
+            else if (c.notImportedClass != null) result.add(c.notImportedClass.getSimpleName());
         }
         return result;
     }
@@ -108,7 +109,12 @@ public class JavaCompilerServiceTest {
     public void completeIdentifiers() {
         List<Completion> found =
                 compiler.completions(
-                        URI.create("/CompleteIdentifiers.java"), contents("/CompleteIdentifiers.java"), 13, 21);
+                                URI.create("/CompleteIdentifiers.java"),
+                                contents("/CompleteIdentifiers.java"),
+                                13,
+                                21,
+                                Integer.MAX_VALUE)
+                        .items;
         List<String> names = completionNames(found);
         assertThat(names, hasItem("completeLocal"));
         assertThat(names, hasItem("completeParam"));
@@ -134,7 +140,13 @@ public class JavaCompilerServiceTest {
     @Test
     public void completeMembers() {
         List<Completion> found =
-                compiler.completions(URI.create("/CompleteMembers.java"), contents("/CompleteMembers.java"), 3, 15);
+                compiler.completions(
+                                URI.create("/CompleteMembers.java"),
+                                contents("/CompleteMembers.java"),
+                                3,
+                                15,
+                                Integer.MAX_VALUE)
+                        .items;
         List<String> names = completionNames(found);
         assertThat(names, hasItem("subMethod"));
         assertThat(names, hasItem("superMethod"));
@@ -145,7 +157,12 @@ public class JavaCompilerServiceTest {
     public void completeExpression() {
         List<Completion> found =
                 compiler.completions(
-                        URI.create("/CompleteExpression.java"), contents("/CompleteExpression.java"), 3, 37);
+                                URI.create("/CompleteExpression.java"),
+                                contents("/CompleteExpression.java"),
+                                3,
+                                37,
+                                Integer.MAX_VALUE)
+                        .items;
         List<String> names = completionNames(found);
         assertThat(names, hasItem("instanceMethod"));
         assertThat(names, not(hasItem("create")));
@@ -155,7 +172,13 @@ public class JavaCompilerServiceTest {
     @Test
     public void completeClass() {
         List<Completion> found =
-                compiler.completions(URI.create("/CompleteClass.java"), contents("/CompleteClass.java"), 3, 23);
+                compiler.completions(
+                                URI.create("/CompleteClass.java"),
+                                contents("/CompleteClass.java"),
+                                3,
+                                23,
+                                Integer.MAX_VALUE)
+                        .items;
         List<String> names = completionNames(found);
         assertThat(names, hasItems("staticMethod", "staticField"));
         assertThat(names, hasItems("class"));
@@ -166,7 +189,13 @@ public class JavaCompilerServiceTest {
     @Test
     public void completeImports() {
         List<Completion> found =
-                compiler.completions(URI.create("/CompleteImports.java"), contents("/CompleteImports.java"), 1, 18);
+                compiler.completions(
+                                URI.create("/CompleteImports.java"),
+                                contents("/CompleteImports.java"),
+                                1,
+                                18,
+                                Integer.MAX_VALUE)
+                        .items;
         List<String> names = completionNames(found);
         assertThat(names, hasItem("List"));
         assertThat(names, hasItem("concurrent"));
