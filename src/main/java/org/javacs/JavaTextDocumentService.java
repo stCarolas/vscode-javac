@@ -17,10 +17,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
+import javax.lang.model.element.*;
 import org.eclipse.lsp4j.*;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.TextDocumentService;
@@ -83,17 +80,14 @@ class JavaTextDocumentService implements TextDocumentService {
                 ExecutableElement method = (ExecutableElement) cached.element;
                 server.compiler
                         .methodDoc(method)
+                        .flatMap(Javadocs::commentText)
                         .ifPresent(
-                                doc -> {
-                                    Javadocs.commentText(doc)
-                                            .ifPresent(
-                                                    html -> {
-                                                        String markdown = Javadocs.htmlToMarkdown(html);
-                                                        MarkupContent content = new MarkupContent();
-                                                        content.setKind(MarkupKind.MARKDOWN);
-                                                        content.setValue(markdown);
-                                                        unresolved.setDocumentation(content);
-                                                    });
+                                html -> {
+                                    String markdown = Javadocs.htmlToMarkdown(html);
+                                    MarkupContent content = new MarkupContent();
+                                    content.setKind(MarkupKind.MARKDOWN);
+                                    content.setValue(markdown);
+                                    unresolved.setDocumentation(content);
                                 });
             } else if (cached.element instanceof TypeElement) {
                 TypeElement type = (TypeElement) cached.element;
@@ -116,6 +110,67 @@ class JavaTextDocumentService implements TextDocumentService {
         return CompletableFuture.completedFuture(unresolved); // TODO
     }
 
+    private String hoverTypeDeclaration(TypeElement t) {
+        StringBuilder result = new StringBuilder();
+        switch (t.getKind()) {
+            case INTERFACE:
+                result.append("interface");
+                break;
+            case CLASS:
+                result.append("class");
+                break;
+            default:
+                LOG.warning("Don't know what to call type element " + t);
+                result.append("???");
+        }
+        result.append(" ").append(t.asType());
+        if (!t.getSuperclass().toString().equals("java.lang.Object")) {
+            result.append(" extends ").append(t.getSuperclass());
+        }
+        return result.toString();
+    }
+
+    private String hoverCode(Element e) {
+        if (e instanceof ExecutableElement) {
+            ExecutableElement m = (ExecutableElement) e;
+            if (m.getSimpleName().contentEquals("<init>")) {
+                return m.toString();
+            } else {
+                StringJoiner result = new StringJoiner(" ");
+                if (m.getModifiers().contains(Modifier.STATIC)) result.add("static");
+                result.add(m.getReturnType().toString());
+                result.add(m.toString());
+                return result.toString();
+            }
+        } else if (e instanceof VariableElement) {
+            VariableElement v = (VariableElement) e;
+            return v.asType() + " " + v;
+        } else if (e instanceof TypeElement) {
+            TypeElement t = (TypeElement) e;
+            StringJoiner lines = new StringJoiner("\n");
+            lines.add(hoverTypeDeclaration(t) + " {");
+            for (Element member : t.getEnclosedElements()) {
+                if (member instanceof ExecutableElement || member instanceof VariableElement) {
+                    lines.add("  " + hoverCode(member) + ";");
+                } else if (member instanceof TypeElement) {
+                    lines.add("  " + hoverTypeDeclaration((TypeElement) member) + " { /* removed */ }");
+                }
+            }
+            lines.add("}");
+            return lines.toString();
+        } else return e.toString();
+    }
+
+    private Optional<String> hoverDocs(Element e) {
+        if (e instanceof ExecutableElement) {
+            ExecutableElement m = (ExecutableElement) e;
+            return server.compiler.methodDoc(m).flatMap(Javadocs::commentText).map(Javadocs::htmlToMarkdown);
+        } else if (e instanceof TypeElement) {
+            TypeElement t = (TypeElement) e;
+            return server.compiler.classDoc(t).map(doc -> doc.commentText()).map(Javadocs::htmlToMarkdown);
+        } else return Optional.empty();
+    }
+
     @Override
     public CompletableFuture<Hover> hover(TextDocumentPositionParams position) {
         URI uri = URI.create(position.getTextDocument().getUri());
@@ -124,9 +179,10 @@ class JavaTextDocumentService implements TextDocumentService {
         int column = position.getPosition().getCharacter() + 1;
         Element e = server.compiler.element(uri, content, line, column);
         if (e != null) {
-            MarkedString hover = new MarkedString("java", e.toString());
-            Hover result = new Hover(Collections.singletonList(Either.forRight(hover)));
-            return CompletableFuture.completedFuture(result);
+            List<Either<String, MarkedString>> result = new ArrayList<>();
+            result.add(Either.forRight(new MarkedString("java", hoverCode(e))));
+            hoverDocs(e).ifPresent(doc -> result.add(Either.forLeft(doc)));
+            return CompletableFuture.completedFuture(new Hover(result));
         } else return CompletableFuture.completedFuture(new Hover(Collections.emptyList()));
     }
 
@@ -150,6 +206,7 @@ class JavaTextDocumentService implements TextDocumentService {
     }
 
     private SignatureHelp asSignatureHelp(MethodInvocation invoke) {
+        // TODO use docs to get parameter names
         List<SignatureInformation> sigs = new ArrayList<>();
         for (ExecutableElement e : invoke.overloads) {
             sigs.add(asSignatureInformation(e));

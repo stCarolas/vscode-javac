@@ -167,7 +167,7 @@ public class JavaCompilerService {
                 joinPath(classPath),
                 "-sourcepath",
                 joinPath(sourcePath),
-                "-verbose",
+                // "-verbose",
                 "-proc:none",
                 "-g",
                 // You would think we could do -Xlint:all,
@@ -306,19 +306,6 @@ public class JavaCompilerService {
                                                 String.format("No TreePath to %s %d:%d", file, line, character)));
 
         return trees.getPath(cache.root, found);
-    }
-
-    private String scopePackage(Scope scope) {
-        Element e = scope.getEnclosingClass();
-        while (e != null) {
-            Element next = e.getEnclosingElement();
-            if (next instanceof PackageElement) {
-                PackageElement p = (PackageElement) next;
-                return p.getQualifiedName().toString();
-            }
-            e = e.getEnclosingElement();
-        }
-        return "";
     }
 
     /** Find all identifiers in scope at line:character */
@@ -529,6 +516,8 @@ public class JavaCompilerService {
      * expression before the cursor looks like `foo.bar` or `foo`
      */
     public CompletionResult completions(URI file, String contents, int line, int character, int limitHint) {
+        LOG.info(String.format("Completing at %s[%d,%d]...", file.getPath(), line, character));
+        // TODO why not just recompile? It's going to get triggered shortly anyway
         JavacTask task = singleFileTask(file, contents);
         CompilationUnitTree parse;
         try {
@@ -553,6 +542,7 @@ public class JavaCompilerService {
                 super.visitMemberSelect(node, nothing);
 
                 if (containsCursor(node) && !containsCursor(node.getExpression()) && result == null) {
+                    LOG.info("...completing members of " + node.getExpression());
                     long offset = pos.getEndPosition(parse, node.getExpression()),
                             line = lines.getLineNumber(offset),
                             column = lines.getColumnNumber(offset);
@@ -566,6 +556,7 @@ public class JavaCompilerService {
                 super.visitMemberReference(node, nothing);
 
                 if (containsCursor(node) && !containsCursor(node.getQualifierExpression()) && result == null) {
+                    LOG.info("...completing members of " + node.getQualifierExpression());
                     long offset = pos.getEndPosition(parse, node.getQualifierExpression()),
                             line = lines.getLineNumber(offset),
                             column = lines.getColumnNumber(offset);
@@ -579,6 +570,7 @@ public class JavaCompilerService {
                 super.visitIdentifier(node, nothing);
 
                 if (containsCursor(node) && result == null) {
+                    LOG.info("...completing identifiers");
                     result = new ArrayList<>();
                     // Does a candidate completion match the name in `node`?
                     String id = Objects.toString(node.getName(), "");
