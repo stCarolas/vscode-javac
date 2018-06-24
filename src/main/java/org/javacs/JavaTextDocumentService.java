@@ -48,6 +48,7 @@ class JavaTextDocumentService implements TextDocumentService {
             if (c.element != null) {
                 i.setLabel(c.element.getSimpleName().toString());
                 // Detailed name will be resolved later, using docs to fill in method names
+                if (!(c.element instanceof ExecutableElement)) i.setDetail(c.element.toString());
             } else if (c.packagePart != null) {
                 i.setLabel(c.packagePart.name);
                 i.setDetail(c.packagePart.fullName);
