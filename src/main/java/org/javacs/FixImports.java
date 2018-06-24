@@ -3,9 +3,12 @@ package org.javacs;
 import com.google.common.base.Joiner;
 import com.google.common.reflect.*;
 import com.sun.source.tree.*;
+import java.io.*;
 import java.nio.file.*;
 import java.util.*;
+import java.util.function.*;
 import java.util.logging.Logger;
+import java.util.regex.*;
 import java.util.stream.*;
 
 class FixImports {
@@ -23,9 +26,48 @@ class FixImports {
     }
 
     /** Find all already-imported symbols in all .java files in sourcePath */
-    ExistingImports existingImports(List<Path> sourcePath) {
-        // TODO
-        return new ExistingImports(Collections.emptySet(), Collections.emptySet());
+    ExistingImports existingImports(Collection<Path> sourcePath) {
+        Set<String> classes = new HashSet<>(), packages = new HashSet<>();
+        Pattern importClass = Pattern.compile("^import +(([\\w\\.]+)\\.\\w+);"),
+                importStar = Pattern.compile("^import +([\\w\\.]+)\\.\\*;"),
+                importSimple = Pattern.compile("^import +(\\w+);");
+        Consumer<Path> findImports =
+                path -> {
+                    try {
+                        Iterator<String> lines = Files.lines(path).iterator();
+                        int countNonImportLines = 0;
+                        while (lines.hasNext() && countNonImportLines < 10) {
+                            String line = lines.next();
+                            if (!line.startsWith("import ")) {
+                                countNonImportLines++;
+                                continue;
+                            }
+                            // import foo.bar.Doh;
+                            Matcher matchesClass = importClass.matcher(line);
+                            if (matchesClass.matches()) {
+                                String className = matchesClass.group(1), packageName = matchesClass.group(2);
+                                packages.add(packageName);
+                                classes.add(className);
+                            }
+                            // import foo.bar.*
+                            Matcher matchesStar = importStar.matcher(line);
+                            if (matchesStar.matches()) {
+                                String packageName = matchesStar.group(1);
+                                packages.add(packageName);
+                            }
+                            // import Doh
+                            Matcher matchesSimple = importSimple.matcher(line);
+                            if (matchesSimple.matches()) {
+                                String className = matchesSimple.group(1);
+                                classes.add(className);
+                            }
+                        }
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                };
+        sourcePath.stream().flatMap(InferSourcePath::allJavaFiles).forEach(findImports);
+        return new ExistingImports(classes, packages);
     }
 
     private Optional<String> resolveSymbol(String unresolved, ExistingImports imports) {

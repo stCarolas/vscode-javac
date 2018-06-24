@@ -11,7 +11,7 @@ import javax.tools.*;
 
 class InferSourcePath {
 
-    private static Stream<Path> allJavaFiles(Path dir) {
+    static Stream<Path> allJavaFiles(Path dir) {
         PathMatcher match = FileSystems.getDefault().getPathMatcher("glob:*.java");
 
         try {

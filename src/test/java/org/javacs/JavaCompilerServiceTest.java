@@ -26,7 +26,7 @@ public class JavaCompilerServiceTest {
             new JavaCompilerService(
                     Collections.singleton(resourcesDir()), Collections.emptySet(), Collections.emptySet());
 
-    private static Path resourcesDir() {
+    static Path resourcesDir() {
         try {
             return Paths.get(JavaCompilerServiceTest.class.getResource("/HelloWorld.java").toURI()).getParent();
         } catch (URISyntaxException e) {
