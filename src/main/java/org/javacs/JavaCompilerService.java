@@ -321,18 +321,6 @@ public class JavaCompilerService {
         return "";
     }
 
-    /** Find all identifiers that haven't yet been imported, but are accessible from scope at line:character */
-    public Stream<ClassPath.ClassInfo> notImported(URI file, String contents, int line, int character) {
-        recompile(file, contents, line, character);
-
-        Trees trees = Trees.instance(cache.task);
-        TreePath path = path(file, line, character);
-        Scope scope = trees.getScope(path);
-        String packageName = scopePackage(scope);
-
-        return classes.topLevelClasses().filter(c -> classes.isAccessibleFromPackage(c, packageName));
-    }
-
     /** Find all identifiers in scope at line:character */
     public List<Element> scopeMembers(URI file, String contents, int line, int character) {
         recompile(file, contents, line, character);
@@ -608,10 +596,14 @@ public class JavaCompilerService {
                         }
                     }
                     // Add names of classes that haven't been imported
+                    String packageName = parse.getPackageName().toString();
                     Iterator<Completion> notImported =
-                            notImported(file, contents, line, character)
+                            classes.topLevelClasses()
+                                    // This is very cheap, so we do it first
                                     .filter(c -> matches.test(c.getSimpleName()))
                                     .filter(c -> !alreadyImported.contains(c.getName()))
+                                    // This is very expensive, so we do it last
+                                    .filter(c -> classes.isAccessibleFromPackage(c, packageName))
                                     .map(Completion::ofNotImportedClass)
                                     .iterator();
                     while (notImported.hasNext() && result.size() < limitHint) {
