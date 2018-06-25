@@ -19,12 +19,6 @@ class FixImports {
         this.classPath = classPath;
     }
 
-    /** Find all unresolved symbols that start with an uppercase letter */
-    Set<String> unresolvedSymbols(CompilationUnitTree tree) {
-        // TODO
-        return Collections.emptySet();
-    }
-
     /** Find all already-imported symbols in all .java files in sourcePath */
     ExistingImports existingImports(Collection<Path> sourcePath) {
         Set<String> classes = new HashSet<>(), packages = new HashSet<>();

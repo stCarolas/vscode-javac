@@ -817,7 +817,66 @@ public class JavaCompilerService {
         return sourcePath.stream().flatMap(dir -> Parser.findSymbols(dir, query));
     }
 
+    // TODO this is ugly, suggests something needs to be moved into JavaCompilerService
     public Trees trees() {
         return Trees.instance(cache.task);
+    }
+
+    /**
+     * Figure out what imports this file should have. Star-imports like `import java.util.*` are converted to individual
+     * class imports. Missing imports are inferred by looking at imports in other source files.
+     */
+    public Set<String> fixImports(URI file, String contents) {
+        // Compile a single file
+        JavacTask task = singleFileTask(file, contents);
+        CompilationUnitTree tree;
+        try {
+            tree = task.parse().iterator().next();
+            task.analyze();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        // Check diagnostics for missing imports
+        Set<String> unresolved = new HashSet<>();
+        for (Diagnostic<? extends JavaFileObject> d : diags) {
+            if (d.getCode().equals("compiler.err.cant.resolve.location") && d.getSource().toUri().equals(file)) {
+                long start = d.getStartPosition(), end = d.getEndPosition();
+                String id = contents.substring((int) start, (int) end);
+                if (id.matches("[A-Z]\\w+")) {
+                    unresolved.add(id);
+                }
+            }
+        }
+        // Look at imports in other classes to help us guess how to fix imports
+        FixImports fix = new FixImports(classes);
+        FixImports.ExistingImports sourcePathImports = fix.existingImports(sourcePath);
+        Map<String, String> fixes = fix.resolveSymbols(unresolved, sourcePathImports);
+        // Figure out which existing imports are actually used
+        Trees trees = Trees.instance(task);
+        Set<String> qualifiedNames = new HashSet<>();
+        class FindUsedImports extends TreePathScanner<Void, Void> {
+            @Override
+            public Void visitIdentifier(IdentifierTree node, Void nothing) {
+                Element e = trees.getElement(getCurrentPath());
+                if (e instanceof TypeElement) {
+                    TypeElement t = (TypeElement) e;
+                    String qualifiedName = t.getQualifiedName().toString();
+                    int lastDot = qualifiedName.lastIndexOf('.');
+                    String packageName = lastDot == -1 ? "" : qualifiedName.substring(0, lastDot);
+                    String thisPackage = Objects.toString(tree.getPackageName(), "");
+                    // java.lang.* and current package are imported by default
+                    if (!packageName.equals("java.lang")
+                            && !packageName.equals(thisPackage)
+                            && !packageName.equals("")) {
+                        qualifiedNames.add(qualifiedName);
+                    }
+                }
+                return null;
+            }
+        }
+        new FindUsedImports().scan(tree, null);
+        // Add qualified names from fixes
+        qualifiedNames.addAll(fixes.values());
+        return qualifiedNames;
     }
 }

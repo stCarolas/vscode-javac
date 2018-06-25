@@ -259,8 +259,8 @@ public class JavaCompilerServiceTest {
         MethodInvocation found =
                 compiler.methodInvocation(URI.create("/Overloads.java"), contents("/Overloads.java"), 3, 15).get();
 
-        assertThat(
-                found.overloads, containsInAnyOrder(hasToString("print(int)"), hasToString("print(java.lang.String)")));
+        assertThat(found.overloads, hasItem(hasToString("print(int)")));
+        assertThat(found.overloads, hasToString("print(java.lang.String)"));
     }
 
     @Test
@@ -280,5 +280,12 @@ public class JavaCompilerServiceTest {
         Optional<MethodDoc> doc = compiler.methodDoc(method);
         assertTrue(doc.isPresent());
         assertThat(Javadocs.commentText(doc.get()).orElse("<empty>"), containsString("A great method"));
+    }
+
+    @Test
+    public void fixImports() {
+        Set<String> qualifiedNames =
+                compiler.fixImports(resourceUri("/MissingImport.java"), contents("/MissingImport.java"));
+        assertThat(qualifiedNames, hasItem("java.util.List"));
     }
 }
