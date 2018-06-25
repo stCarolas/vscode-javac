@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
+import java.util.regex.*;
 import java.util.stream.Collectors;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
@@ -82,17 +83,32 @@ public class Javadocs {
         return actualFileManager;
     }
 
-    /** Convert Javadoc HTML to Markdown */
+    private static final Pattern HTML_TAG = Pattern.compile("<(\\w+)>");
+
+    private static boolean isHtml(String text) {
+        Matcher tags = HTML_TAG.matcher(text);
+        while (tags.find()) {
+            String tag = tags.group(1);
+            String close = String.format("</%s>", tag);
+            int findClose = text.indexOf(close, tags.end());
+            if (findClose != -1) return true;
+        }
+        return false;
+    }
+
+    /** If `commentText` looks like HTML, convert it to markdown */
     static String htmlToMarkdown(String commentText) {
-        Options options = new Options();
+        if (isHtml(commentText)) {
+            Options options = new Options();
 
-        options.tables = Options.Tables.CONVERT_TO_CODE_BLOCK;
-        options.hardwraps = true;
-        options.inlineLinks = true;
-        options.autoLinks = true;
-        options.reverseHtmlSmartPunctuation = true;
+            options.tables = Options.Tables.CONVERT_TO_CODE_BLOCK;
+            options.hardwraps = true;
+            options.inlineLinks = true;
+            options.autoLinks = true;
+            options.reverseHtmlSmartPunctuation = true;
 
-        return new Remark(options).convertFragment(commentText);
+            return new Remark(options).convertFragment(commentText);
+        } else return commentText;
     }
 
     /** Get docstring for method, using inherited method if necessary */
