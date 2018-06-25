@@ -57,6 +57,7 @@ public class Javadocs {
         this.task = JavacTool.create().getTask(null, emptyFileManager, __ -> {}, null, null, null);
     }
 
+    @SafeVarargs
     private static Set<File> allSourcePaths(Set<Path>... userSourcePath) {
         Set<File> allSourcePaths = new HashSet<>();
 
