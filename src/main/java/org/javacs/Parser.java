@@ -1,7 +1,6 @@
 package org.javacs;
 
 import com.google.common.base.Joiner;
-import com.google.common.reflect.ClassPath;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.LineMap;
@@ -318,7 +317,10 @@ class Parser {
         Set<String> candidates =
                 imports.classes.stream().filter(c -> c.endsWith(unresolved)).collect(Collectors.toSet());
         if (candidates.size() > 1) {
-            LOG.info(String.format("%s in ambiguous between %s", unresolved, Joiner.on(", ").join(candidates)));
+            LOG.warning(
+                    String.format(
+                            "%s in ambiguous between previously imported candidates %s",
+                            unresolved, Joiner.on(", ").join(candidates)));
             return Optional.empty();
         } else if (candidates.size() == 1) {
             return Optional.of(candidates.iterator().next());
@@ -335,29 +337,44 @@ class Parser {
                         .map(c -> c.getName())
                         .collect(Collectors.toSet());
         if (candidates.size() > 1) {
-            LOG.info(String.format("%s in ambiguous between %s", unresolved, Joiner.on(", ").join(candidates)));
+            LOG.warning(
+                    String.format(
+                            "%s in ambiguous between package-based candidates %s",
+                            unresolved, Joiner.on(", ").join(candidates)));
             return Optional.empty();
         } else if (candidates.size() == 1) {
             return Optional.of(candidates.iterator().next());
         }
 
-        // Try to import from java classpath
-        Comparator<ClassPath.ClassInfo> order =
+        // If there is only one class on the classpath with this name, use it
+        candidates =
+                classPath
+                        .topLevelClasses()
+                        .filter(c -> c.getSimpleName().equals(unresolved))
+                        .map(c -> c.getName())
+                        .collect(Collectors.toSet());
+
+        if (candidates.size() > 1) {
+            LOG.warning(
+                    String.format(
+                            "%s in ambiguous between classpath candidates %s",
+                            unresolved, Joiner.on(", ").join(candidates)));
+        } else if (candidates.size() == 1) {
+            return Optional.of(candidates.iterator().next());
+        } else {
+            LOG.warning(unresolved + " does not appear on the classpath");
+        }
+
+        // Try to import from java stdlib
+        Comparator<String> order =
                 Comparator.comparing(
                         c -> {
-                            String p = c.getPackageName();
-                            if (p.startsWith("java.lang")) return 1;
-                            else if (p.startsWith("java.util")) return 2;
-                            else if (p.startsWith("java.io")) return 3;
+                            if (c.startsWith("java.lang")) return 1;
+                            else if (c.startsWith("java.util")) return 2;
+                            else if (c.startsWith("java.io")) return 3;
                             else return 4;
                         });
-        return classPath
-                .topLevelClasses()
-                .filter(c -> c.getPackageName().startsWith("java."))
-                .filter(c -> c.getSimpleName().equals(unresolved))
-                .sorted(order)
-                .map(c -> c.getName())
-                .findFirst();
+        return candidates.stream().filter(c -> c.startsWith("java.")).sorted(order).findFirst();
     }
 
     // TODO does this really belong in Parser?

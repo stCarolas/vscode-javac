@@ -6,6 +6,7 @@ import com.sun.javadoc.ClassDoc;
 import com.sun.javadoc.MethodDoc;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.IdentifierTree;
+import com.sun.source.tree.ImportTree;
 import com.sun.source.tree.LineMap;
 import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MemberSelectTree;
@@ -65,8 +66,6 @@ import javax.tools.Diagnostic;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
-import org.javacs.JavaCompilerService.Batch;
-import org.javacs.JavaCompilerService.Cache;
 
 public class JavaCompilerService {
     private static final Logger LOG = Logger.getLogger("main");
@@ -867,6 +866,7 @@ public class JavaCompilerService {
      * class imports. Missing imports are inferred by looking at imports in other source files.
      */
     public FixImports fixImports(URI file, String contents) {
+        LOG.info("Fix imports in " + file);
         // Compile a single file
         JavacTask task = singleFileTask(file, contents);
         CompilationUnitTree tree;
@@ -884,7 +884,11 @@ public class JavaCompilerService {
                 String id = contents.substring((int) start, (int) end);
                 if (id.matches("[A-Z]\\w+")) {
                     unresolved.add(id);
-                }
+                } else LOG.warning(id + " doesn't look like a class");
+            } else if (d.getMessage(null).contains("cannot find symbol")) {
+                String[] lines = d.getMessage(null).split("\n");
+                String firstLine = lines.length > 0 ? lines[0] : "";
+                LOG.warning(String.format("%s %s doesn't look like symbol-not-found", d.getCode(), firstLine));
             }
         }
         // Look at imports in other classes to help us guess how to fix imports
@@ -892,7 +896,7 @@ public class JavaCompilerService {
         Map<String, String> fixes = Parser.resolveSymbols(unresolved, sourcePathImports, classes);
         // Figure out which existing imports are actually used
         Trees trees = Trees.instance(task);
-        Set<String> qualifiedNames = new HashSet<>();
+        Set<String> references = new HashSet<>();
         class FindUsedImports extends TreePathScanner<Void, Void> {
             @Override
             public Void visitIdentifier(IdentifierTree node, Void nothing) {
@@ -907,13 +911,20 @@ public class JavaCompilerService {
                     if (!packageName.equals("java.lang")
                             && !packageName.equals(thisPackage)
                             && !packageName.equals("")) {
-                        qualifiedNames.add(qualifiedName);
+                        references.add(qualifiedName);
                     }
                 }
                 return null;
             }
         }
         new FindUsedImports().scan(tree, null);
+        // Take the intersection of existing imports ^ existing identifiers
+        Set<String> qualifiedNames = new HashSet<>();
+        for (ImportTree i : tree.getImports()) {
+            String imported = i.getQualifiedIdentifier().toString();
+            if (references.contains(imported)) qualifiedNames.add(imported);
+            else LOG.warning("There are no references to " + imported);
+        }
         // Add qualified names from fixes
         qualifiedNames.addAll(fixes.values());
         return new FixImports(tree, trees.getSourcePositions(), qualifiedNames);
