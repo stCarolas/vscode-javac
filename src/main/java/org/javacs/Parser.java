@@ -14,6 +14,7 @@ import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.api.JavacTool;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.Charset;
@@ -27,7 +28,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -275,12 +275,12 @@ class Parser {
                 importSimple = Pattern.compile("^import +(\\w+);");
         Consumer<Path> findImports =
                 path -> {
-                    try {
+                    try (BufferedReader lines = Files.newBufferedReader(path)) {
                         // TODO use line-contains `class` to signify end of imports section
-                        Iterator<String> lines = Files.lines(path).iterator();
                         int countNonImportLines = 0;
-                        while (lines.hasNext() && countNonImportLines < 10) {
-                            String line = lines.next();
+                        while (countNonImportLines < 10) {
+                            String line = lines.readLine();
+                            if (line == null) break;
                             if (!line.startsWith("import ")) {
                                 countNonImportLines++;
                                 continue;
