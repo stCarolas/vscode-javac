@@ -37,7 +37,7 @@ class JavaLanguageServer implements LanguageServer {
     final JavaTextDocumentService textDocuments = new JavaTextDocumentService(this);
     final JavaWorkspaceService workspace = new JavaWorkspaceService(this);
 
-    private static DiagnosticSeverity severity(javax.tools.Diagnostic.Kind kind) {
+    private static DiagnosticSeverity severity(Diagnostic.Kind kind) {
         switch (kind) {
             case ERROR:
                 return DiagnosticSeverity.Error;

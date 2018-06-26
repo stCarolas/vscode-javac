@@ -309,6 +309,7 @@ class Parser {
         return new ExistingImports(classes, packages);
     }
 
+    // TODO does this really belong in Parser?
     private static Optional<String> resolveSymbol(
             String unresolved, ExistingImports imports, ClassPathIndex classPath) {
         // Try to disambiguate by looking for exact matches
@@ -359,6 +360,7 @@ class Parser {
                 .findFirst();
     }
 
+    // TODO does this really belong in Parser?
     static Map<String, String> resolveSymbols(
             Set<String> unresolvedSymbols, ExistingImports imports, ClassPathIndex classPath) {
         Map<String, String> result = new HashMap<>();
