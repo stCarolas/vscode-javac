@@ -14,7 +14,7 @@
         "vscode": "^1.21.0"
     },
     "categories": [
-        "Languages",
+        "Programming Languages",
         "Linters"
     ],
     "keywords": [
@@ -85,6 +85,11 @@
                     "description": "Traces the communication between VSCode and the language server."
                 }
             }
+        },
+        "configurationDefaults": {
+          "[java]": {
+            "editor.formatOnSave": true
+          }
         }
     },
     "scripts": {
