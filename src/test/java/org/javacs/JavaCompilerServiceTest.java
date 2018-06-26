@@ -285,7 +285,7 @@ public class JavaCompilerServiceTest {
     @Test
     public void fixImports() {
         Set<String> qualifiedNames =
-                compiler.fixImports(resourceUri("/MissingImport.java"), contents("/MissingImport.java"));
+                compiler.fixImports(resourceUri("/MissingImport.java"), contents("/MissingImport.java")).fixedImports;
         assertThat(qualifiedNames, hasItem("java.util.List"));
     }
 }

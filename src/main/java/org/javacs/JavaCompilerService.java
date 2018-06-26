@@ -826,7 +826,7 @@ public class JavaCompilerService {
      * Figure out what imports this file should have. Star-imports like `import java.util.*` are converted to individual
      * class imports. Missing imports are inferred by looking at imports in other source files.
      */
-    public Set<String> fixImports(URI file, String contents) {
+    public FixImports fixImports(URI file, String contents) {
         // Compile a single file
         JavacTask task = singleFileTask(file, contents);
         CompilationUnitTree tree;
@@ -848,9 +848,8 @@ public class JavaCompilerService {
             }
         }
         // Look at imports in other classes to help us guess how to fix imports
-        FixImports fix = new FixImports(classes);
-        FixImports.ExistingImports sourcePathImports = fix.existingImports(sourcePath);
-        Map<String, String> fixes = fix.resolveSymbols(unresolved, sourcePathImports);
+        ExistingImports sourcePathImports = Parser.existingImports(sourcePath);
+        Map<String, String> fixes = Parser.resolveSymbols(unresolved, sourcePathImports, classes);
         // Figure out which existing imports are actually used
         Trees trees = Trees.instance(task);
         Set<String> qualifiedNames = new HashSet<>();
@@ -877,6 +876,6 @@ public class JavaCompilerService {
         new FindUsedImports().scan(tree, null);
         // Add qualified names from fixes
         qualifiedNames.addAll(fixes.values());
-        return qualifiedNames;
+        return new FixImports(tree, trees.getSourcePositions(), qualifiedNames);
     }
 }

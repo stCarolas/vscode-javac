@@ -28,6 +28,45 @@ class JavaTextDocumentService implements TextDocumentService {
         this.server = server;
     }
 
+    private CompletionItemKind completionItemKind(Element e) {
+        switch (e.getKind()) {
+            case ANNOTATION_TYPE:
+                return CompletionItemKind.Interface;
+            case CLASS:
+                return CompletionItemKind.Class;
+            case CONSTRUCTOR:
+                return CompletionItemKind.Constructor;
+            case ENUM:
+                return CompletionItemKind.Enum;
+            case ENUM_CONSTANT:
+                return CompletionItemKind.EnumMember;
+            case EXCEPTION_PARAMETER:
+                return CompletionItemKind.Variable;
+            case FIELD:
+                return CompletionItemKind.Field;
+            case STATIC_INIT:
+            case INSTANCE_INIT:
+                return CompletionItemKind.Function;
+            case INTERFACE:
+                return CompletionItemKind.Interface;
+            case LOCAL_VARIABLE:
+                return CompletionItemKind.Variable;
+            case METHOD:
+                return CompletionItemKind.Method;
+            case PACKAGE:
+                return CompletionItemKind.Module;
+            case PARAMETER:
+                return CompletionItemKind.Variable;
+            case RESOURCE_VARIABLE:
+                return CompletionItemKind.Variable;
+            case TYPE_PARAMETER:
+                return CompletionItemKind.TypeParameter;
+            case OTHER:
+            default:
+                return null;
+        }
+    }
+
     /** Cache of completions from the last call to `completion` */
     private final Map<String, Completion> lastCompletions = new HashMap<>();
 
@@ -47,16 +86,20 @@ class JavaTextDocumentService implements TextDocumentService {
             lastCompletions.put(id, c);
             if (c.element != null) {
                 i.setLabel(c.element.getSimpleName().toString());
+                i.setKind(completionItemKind(c.element));
                 // Detailed name will be resolved later, using docs to fill in method names
                 if (!(c.element instanceof ExecutableElement)) i.setDetail(c.element.toString());
             } else if (c.packagePart != null) {
                 i.setLabel(c.packagePart.name);
+                i.setKind(CompletionItemKind.Module);
                 i.setDetail(c.packagePart.fullName);
             } else if (c.classSymbol != null) {
                 i.setLabel("class");
+                i.setKind(CompletionItemKind.Keyword);
                 i.setDetail(c.classSymbol.toString());
             } else if (c.notImportedClass != null) {
                 i.setLabel(c.notImportedClass.getSimpleName());
+                i.setKind(CompletionItemKind.Class);
                 i.setDetail(c.notImportedClass.getName());
             } else throw new RuntimeException(c + " is not valid");
 
@@ -343,9 +386,59 @@ class JavaTextDocumentService implements TextDocumentService {
         return null;
     }
 
+    private List<TextEdit> fixImports(URI java) {
+        String contents = server.textDocuments.contents(java).content;
+        FixImports fix = server.compiler.fixImports(java, contents);
+        // TODO if imports already match fixed-imports, return empty list
+        // TODO preserve comments and other details of existing imports
+        List<TextEdit> edits = new ArrayList<>();
+        // Delete all existing imports
+        for (ImportTree i : fix.parsed.getImports()) {
+            if (!i.isStatic()) {
+                long offset = fix.sourcePositions.getStartPosition(fix.parsed, i);
+                int line = (int) fix.parsed.getLineMap().getLineNumber(offset) - 1;
+                TextEdit delete = new TextEdit(new Range(new Position(line, 0), new Position(line + 1, 0)), "");
+                edits.add(delete);
+            }
+        }
+        // Find a place to insert the new imports
+        long insertLine = -1;
+        StringBuilder insertText = new StringBuilder();
+        // If there are imports, use the start of the first import as the insert position
+        for (ImportTree i : fix.parsed.getImports()) {
+            if (!i.isStatic() && insertLine == -1) {
+                long offset = fix.sourcePositions.getStartPosition(fix.parsed, i);
+                insertLine = fix.parsed.getLineMap().getLineNumber(offset) - 1;
+            }
+        }
+        // If there are no imports, insert after the package declaration
+        if (insertLine == -1 && fix.parsed.getPackageName() != null) {
+            long offset = fix.sourcePositions.getEndPosition(fix.parsed, fix.parsed.getPackageName());
+            insertLine = fix.parsed.getLineMap().getLineNumber(offset);
+            insertText.append("\n");
+        }
+        // If there are no imports and no package, insert at the top of the file
+        if (insertLine == -1) {
+            insertLine = 0;
+        }
+        // Insert each import
+        fix.fixedImports
+                .stream()
+                .sorted()
+                .forEach(
+                        i -> {
+                            insertText.append("import ").append(i).append(";\n");
+                        });
+        Position insertPosition = new Position((int) insertLine, 0);
+        TextEdit insert = new TextEdit(new Range(insertPosition, insertPosition), insertText.toString());
+        edits.add(insert);
+        return edits;
+    }
+
     @Override
     public CompletableFuture<List<? extends TextEdit>> formatting(DocumentFormattingParams params) {
-        return null;
+        URI uri = URI.create(params.getTextDocument().getUri());
+        return CompletableFuture.completedFuture(fixImports(uri));
     }
 
     @Override
@@ -455,6 +548,10 @@ class JavaTextDocumentService implements TextDocumentService {
             // TODO update config when java file implies a new source root
         }
         // TODO update config when pom.xml changes
+    }
+
+    Set<URI> activeDocuments() {
+        return activeDocuments.keySet();
     }
 
     VersionedContent contents(URI openFile) {
