@@ -3,6 +3,7 @@ package org.javacs;
 import com.google.common.reflect.ClassPath;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
+import org.javacs.Completion.PackagePart;
 
 /**
  * Union of the different types of completion provided by JavaCompilerService. Only one of the members will be non-null.

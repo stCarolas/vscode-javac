@@ -20,9 +20,15 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import javax.lang.model.element.TypeElement;
-import javax.tools.*;
+import javax.tools.FileObject;
+import javax.tools.ForwardingJavaFileManager;
+import javax.tools.JavaFileManager;
+import javax.tools.JavaFileManager.Location;
+import javax.tools.JavaFileObject;
 import javax.tools.JavaFileObject.Kind;
-import org.javacs.pubapi.*;
+import javax.tools.StandardLocation;
+import org.javacs.pubapi.PubApi;
+import org.javacs.pubapi.PubapiVisitor;
 
 /** An implementation of JavaFileManager that removes any .java source files where there is an up-to-date .class file */
 class IncrementalFileManager extends ForwardingJavaFileManager<JavaFileManager> {

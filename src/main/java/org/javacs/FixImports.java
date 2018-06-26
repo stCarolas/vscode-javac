@@ -1,13 +1,8 @@
 package org.javacs;
 
-import com.sun.source.tree.*;
-import com.sun.source.util.*;
-import java.io.*;
-import java.nio.file.*;
-import java.util.*;
-import java.util.function.*;
-import java.util.regex.*;
-import java.util.stream.*;
+import com.sun.source.tree.CompilationUnitTree;
+import com.sun.source.util.SourcePositions;
+import java.util.Set;
 
 class FixImports {
     final CompilationUnitTree parsed;

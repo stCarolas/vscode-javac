@@ -1,6 +1,6 @@
 package org.javacs;
 
-import java.util.*;
+import java.util.Set;
 
 class ExistingImports {
     /** Fully-qualified names of classes that have been imported on the source path */
