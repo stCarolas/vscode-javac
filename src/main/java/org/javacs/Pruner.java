@@ -24,6 +24,7 @@ import javax.tools.StandardJavaFileManager;
 class Pruner {
     private static final Logger LOG = Logger.getLogger("main");
     // Parse-only compiler
+    // TODO this should come from Parser
     private static final JavaCompiler COMPILER = JavacTool.create(); // TODO switch to java 9 mechanism
     private static final StandardJavaFileManager FILE_MANAGER =
             COMPILER.getStandardFileManager(Pruner::report, null, Charset.defaultCharset());

@@ -691,16 +691,6 @@ public class CompletionsTest extends CompletionsBase {
     }
 
     @Test
-    public void containsCharactersInOrder() {
-        assertTrue(Completions.containsCharactersInOrder("FooBar", "FooBar", false));
-        assertTrue(Completions.containsCharactersInOrder("FooBar", "foobar", false));
-        assertTrue(Completions.containsCharactersInOrder("FooBar", "FB", false));
-        assertTrue(Completions.containsCharactersInOrder("FooBar", "fb", false));
-        assertFalse(Completions.containsCharactersInOrder("FooBar", "FooBar1", false));
-        assertFalse(Completions.containsCharactersInOrder("FooBar", "FB1", false));
-    }
-
-    @Test
     public void withinConstructor() throws IOException {
         String file = "/org/javacs/example/AutocompleteContext.java";
 

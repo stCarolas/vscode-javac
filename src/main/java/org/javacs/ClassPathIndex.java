@@ -149,11 +149,33 @@ class ClassPathIndex {
                 .map(c -> c.getPackageName());
     }
 
+    private static boolean containsCharactersInOrder(
+            CharSequence candidate, CharSequence pattern, boolean caseSensitive) {
+        int iCandidate = 0, iPattern = 0;
+
+        while (iCandidate < candidate.length() && iPattern < pattern.length()) {
+            char patternChar = pattern.charAt(iPattern);
+            char testChar = candidate.charAt(iCandidate);
+
+            if (!caseSensitive) {
+                patternChar = Character.toLowerCase(patternChar);
+                testChar = Character.toLowerCase(testChar);
+            }
+
+            if (patternChar == testChar) {
+                iPattern++;
+                iCandidate++;
+            } else iCandidate++;
+        }
+
+        return iPattern == pattern.length();
+    }
+
     Stream<ClassPath.ClassInfo> topLevelClassesIn(String parentPackage, String partialClass) {
         Predicate<ClassPath.ClassInfo> matches =
                 c -> {
                     return c.getPackageName().equals(parentPackage)
-                            && Completions.containsCharactersInOrder(c.getSimpleName(), partialClass, false);
+                            && containsCharactersInOrder(c.getSimpleName(), partialClass, false);
                 };
 
         return topLevelClasses.stream().filter(matches);
