@@ -22,8 +22,8 @@ class JavaLanguageServer implements LanguageServer {
     Path workspaceRoot;
     LanguageClient client;
     JavaCompilerService compiler;
-    JavaTextDocumentService textDocuments = new JavaTextDocumentService(this);
-    JavaWorkspaceService workspace = new JavaWorkspaceService(this);
+    final JavaTextDocumentService textDocuments = new JavaTextDocumentService(this);
+    final JavaWorkspaceService workspace = new JavaWorkspaceService(this);
 
     private static DiagnosticSeverity severity(javax.tools.Diagnostic.Kind kind) {
         switch (kind) {
@@ -89,8 +89,6 @@ class JavaLanguageServer implements LanguageServer {
     public CompletableFuture<InitializeResult> initialize(InitializeParams params) {
         this.workspaceRoot = Paths.get(URI.create(params.getRootUri()));
         this.compiler = createCompiler();
-        this.textDocuments = new JavaTextDocumentService(this);
-        this.workspace = new JavaWorkspaceService(this);
 
         InitializeResult result = new InitializeResult();
         ServerCapabilities c = new ServerCapabilities();
@@ -103,6 +101,7 @@ class JavaLanguageServer implements LanguageServer {
         c.setReferencesProvider(true);
         c.setDocumentSymbolProvider(true);
         c.setSignatureHelpProvider(new SignatureHelpOptions(ImmutableList.of("(", ",")));
+        c.setDocumentFormattingProvider(true);
 
         result.setCapabilities(c);
 
