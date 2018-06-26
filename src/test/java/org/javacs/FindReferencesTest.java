@@ -7,7 +7,10 @@ import java.net.URI;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
-import org.eclipse.lsp4j.*;
+import org.eclipse.lsp4j.Location;
+import org.eclipse.lsp4j.Position;
+import org.eclipse.lsp4j.ReferenceParams;
+import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.junit.Test;
 
 public class FindReferencesTest {

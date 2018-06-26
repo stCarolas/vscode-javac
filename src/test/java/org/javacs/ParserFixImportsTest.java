@@ -3,8 +3,8 @@ package org.javacs;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
 
-import java.nio.file.*;
-import java.util.*;
+import java.util.Collections;
+import java.util.Map;
 import org.junit.Test;
 
 public class ParserFixImportsTest {
