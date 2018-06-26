@@ -276,34 +276,30 @@ class Parser {
         Consumer<Path> findImports =
                 path -> {
                     try (BufferedReader lines = Files.newBufferedReader(path)) {
-                        // TODO use line-contains `class` to signify end of imports section
-                        int countNonImportLines = 0;
-                        while (countNonImportLines < 10) {
-                            String line = lines.readLine();
-                            if (line == null) break;
-                            if (!line.startsWith("import ")) {
-                                countNonImportLines++;
-                                continue;
-                            }
-                            // import foo.bar.Doh;
-                            Matcher matchesClass = importClass.matcher(line);
-                            if (matchesClass.matches()) {
-                                String className = matchesClass.group(1), packageName = matchesClass.group(2);
-                                packages.add(packageName);
-                                classes.add(className);
-                            }
-                            // import foo.bar.*
-                            Matcher matchesStar = importStar.matcher(line);
-                            if (matchesStar.matches()) {
-                                String packageName = matchesStar.group(1);
-                                packages.add(packageName);
-                            }
-                            // import Doh
-                            Matcher matchesSimple = importSimple.matcher(line);
-                            if (matchesSimple.matches()) {
-                                String className = matchesSimple.group(1);
-                                classes.add(className);
-                            }
+                        String line = lines.readLine();
+                        // If we reach the end of the file, stop looking for imports
+                        if (line == null) return;
+                        // If we reach a class declaration, stop looking for imports
+                        // TODO This could be a little more specific
+                        if (line.contains("class")) return;
+                        // import foo.bar.Doh;
+                        Matcher matchesClass = importClass.matcher(line);
+                        if (matchesClass.matches()) {
+                            String className = matchesClass.group(1), packageName = matchesClass.group(2);
+                            packages.add(packageName);
+                            classes.add(className);
+                        }
+                        // import foo.bar.*
+                        Matcher matchesStar = importStar.matcher(line);
+                        if (matchesStar.matches()) {
+                            String packageName = matchesStar.group(1);
+                            packages.add(packageName);
+                        }
+                        // import Doh
+                        Matcher matchesSimple = importSimple.matcher(line);
+                        if (matchesSimple.matches()) {
+                            String className = matchesSimple.group(1);
+                            classes.add(className);
                         }
                     } catch (IOException e) {
                         throw new RuntimeException(e);

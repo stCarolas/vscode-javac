@@ -85,8 +85,12 @@ class JavaLanguageServer implements LanguageServer {
     }
 
     void lint(Collection<URI> uris) {
-        LOG.info("Lint " + uris.stream().map(uri -> uri.toString()).collect(Collectors.joining(", ")));
-        List<Path> paths = uris.stream().map(uri -> Paths.get(uri)).collect(Collectors.toList());
+        List<Path> paths =
+                uris.stream()
+                        .filter(uri -> uri.getScheme().equals("file"))
+                        .map(uri -> Paths.get(uri))
+                        .collect(Collectors.toList());
+        LOG.info("Lint " + paths.stream().map(p -> p.getFileName().toString()).collect(Collectors.joining(", ")));
         publishDiagnostics(uris, compiler.lint(paths));
     }
 
