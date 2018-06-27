@@ -4,6 +4,7 @@ import com.google.common.base.StandardSystemProperty;
 import com.google.common.reflect.ClassPath;
 import com.sun.javadoc.ClassDoc;
 import com.sun.javadoc.MethodDoc;
+import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.ImportTree;
@@ -11,9 +12,11 @@ import com.sun.source.tree.LineMap;
 import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
+import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Scope;
 import com.sun.source.tree.Tree;
+import com.sun.source.tree.VariableTree;
 import com.sun.source.util.JavacTask;
 import com.sun.source.util.SourcePositions;
 import com.sun.source.util.TreePath;
@@ -21,6 +24,7 @@ import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.TreeScanner;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.api.JavacTool;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -67,6 +71,7 @@ import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 
+// TODO eliminate uses of URI in favor of Path
 public class JavaCompilerService {
     private static final Logger LOG = Logger.getLogger("main");
     // Not modifiable! If you want to edit these, you need to create a new instance
@@ -714,14 +719,133 @@ public class JavaCompilerService {
         return trees.getElement(path);
     }
 
-    public Optional<TreePath> definition(URI file, String contents, int line, int character) {
-        recompile(file, contents, -1, -1);
+    private Optional<TypeElement> topLevelDeclaration(Element e) {
+        Element parent = e;
+        TypeElement result = null;
+        while (parent.getEnclosingElement() != null) {
+            if (parent instanceof TypeElement) result = (TypeElement) parent;
+            parent = parent.getEnclosingElement();
+        }
+        return Optional.ofNullable(result);
+    }
+
+    /** */
+    private boolean containsTopLevelDeclaration(Path file, String simpleClassName) {
+        Pattern find = Pattern.compile("\\b(class|interface|enum) +" + simpleClassName + "\\b");
+        try (BufferedReader lines = Files.newBufferedReader(file)) {
+            String line = lines.readLine();
+            while (line != null) {
+                if (find.matcher(line).find()) return true;
+                line = lines.readLine();
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return false;
+    }
+
+    /** Find the file `e` was declared in */
+    private Optional<Path> findDeclaringFile(TypeElement e) {
+        String name = e.getQualifiedName().toString();
+        int lastDot = name.lastIndexOf('.');
+        String packageName = lastDot == -1 ? "" : name.substring(0, lastDot);
+        String className = name.substring(lastDot + 1);
+        // First, look for a file named [ClassName].java
+        Path packagePath = Paths.get(packageName.replace('.', File.separatorChar));
+        Path publicClassPath = packagePath.resolve(className + ".java");
+        for (Path root : sourcePath) {
+            Path absPath = root.resolve(publicClassPath);
+            if (Files.exists(absPath) && containsTopLevelDeclaration(absPath, className)) {
+                return Optional.of(absPath);
+            }
+        }
+        // Then, look for a secondary declaration in all java files in the package
+        boolean isPublic = e.getModifiers().contains(Modifier.PUBLIC);
+        if (!isPublic) {
+            for (Path root : sourcePath) {
+                Path absDir = root.resolve(packagePath);
+                try {
+                    Optional<Path> foundFile =
+                            Files.list(absDir).filter(f -> containsTopLevelDeclaration(f, className)).findFirst();
+                    if (foundFile.isPresent()) return foundFile;
+                } catch (IOException err) {
+                    throw new RuntimeException(err);
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    /** Compile `file` and locate `e` in it */
+    private Optional<TreePath> findIn(Element e, Path file, String contents) {
+        JavacTask task = singleFileTask(file.toUri(), contents);
+        CompilationUnitTree tree;
+        try {
+            tree = task.parse().iterator().next();
+            task.analyze();
+        } catch (IOException err) {
+            throw new RuntimeException(err);
+        }
+        Trees trees = Trees.instance(task);
+        class Find extends TreePathScanner<Void, Void> {
+            Optional<TreePath> found = Optional.empty();
+
+            boolean toStringEquals(Object left, Object right) {
+                return Objects.equals(Objects.toString(left, ""), Objects.toString(right, ""));
+            }
+
+            /** Check if the declaration at the current path is the same symbol as `e` */
+            boolean sameSymbol() {
+                Element candidate = trees.getElement(getCurrentPath());
+                // `e` is from a different compilation, so we have to compare qualified names
+                return toStringEquals(candidate.getEnclosingElement(), e.getEnclosingElement())
+                        && toStringEquals(candidate, e);
+            }
+
+            void check() {
+                if (sameSymbol()) {
+                    found = Optional.of(getCurrentPath());
+                }
+            }
+
+            @Override
+            public Void visitClass(ClassTree node, Void aVoid) {
+                check();
+                return super.visitClass(node, aVoid);
+            }
+
+            @Override
+            public Void visitMethod(MethodTree node, Void aVoid) {
+                check();
+                return super.visitMethod(node, aVoid);
+            }
+
+            @Override
+            public Void visitVariable(VariableTree node, Void aVoid) {
+                check();
+                return super.visitVariable(node, aVoid);
+            }
+
+            Optional<TreePath> run() {
+                scan(tree, null);
+                return found;
+            }
+        }
+        return new Find().run();
+    }
+
+    public Optional<TreePath> definition(URI file, int line, int character, Function<URI, String> contents) {
+        recompile(file, contents.apply(file), line, character);
 
         Trees trees = Trees.instance(cache.task);
         TreePath path = path(file, line, character);
+        LOG.info("Looking for definition for " + path.getLeaf() + "...");
         Element e = trees.getElement(path);
-        TreePath t = trees.getPath(e);
-        return Optional.ofNullable(t);
+        Optional<TypeElement> declaration = topLevelDeclaration(e);
+        LOG.info("...looking for top-level declaration " + declaration);
+        Optional<Path> declaringFile = declaration.flatMap(this::findDeclaringFile);
+        LOG.info("...declaration is in " + declaringFile);
+        return declaringFile.flatMap(f -> findIn(e, f, contents.apply(f.toUri())));
     }
 
     /** Look up the javadoc associated with `e` */

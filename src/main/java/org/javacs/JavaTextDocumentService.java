@@ -266,6 +266,7 @@ class JavaTextDocumentService implements TextDocumentService {
             StringJoiner lines = new StringJoiner("\n");
             lines.add(hoverTypeDeclaration(t) + " {");
             for (Element member : t.getEnclosedElements()) {
+                // TODO check accessibility
                 if (member instanceof ExecutableElement || member instanceof VariableElement) {
                     lines.add("  " + hoverCode(member) + ";");
                 } else if (member instanceof TypeElement) {
@@ -387,7 +388,7 @@ class JavaTextDocumentService implements TextDocumentService {
         int column = position.getPosition().getCharacter() + 1;
         List<Location> result = new ArrayList<>();
         server.compiler
-                .definition(uri, content, line, column)
+                .definition(uri, line, column, f -> contents(f).content)
                 .ifPresent(
                         d -> {
                             result.add(location(d));

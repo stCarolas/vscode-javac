@@ -87,9 +87,9 @@
             }
         },
         "configurationDefaults": {
-          "[java]": {
-            "editor.formatOnSave": true
-          }
+            "[java]": {
+                "editor.formatOnSave": true
+            }
         }
     },
     "scripts": {
