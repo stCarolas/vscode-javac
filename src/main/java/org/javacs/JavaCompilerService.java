@@ -4,26 +4,13 @@ import com.google.common.base.StandardSystemProperty;
 import com.google.common.reflect.ClassPath;
 import com.sun.javadoc.ClassDoc;
 import com.sun.javadoc.MethodDoc;
-import com.sun.source.tree.ClassTree;
-import com.sun.source.tree.CompilationUnitTree;
-import com.sun.source.tree.IdentifierTree;
-import com.sun.source.tree.ImportTree;
-import com.sun.source.tree.LineMap;
-import com.sun.source.tree.MemberReferenceTree;
-import com.sun.source.tree.MemberSelectTree;
-import com.sun.source.tree.MethodInvocationTree;
-import com.sun.source.tree.MethodTree;
-import com.sun.source.tree.NewClassTree;
-import com.sun.source.tree.Scope;
-import com.sun.source.tree.Tree;
-import com.sun.source.tree.VariableTree;
+import com.sun.source.tree.*;
 import com.sun.source.util.JavacTask;
 import com.sun.source.util.SourcePositions;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.TreeScanner;
 import com.sun.source.util.Trees;
-import com.sun.tools.javac.api.JavacTool;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -37,19 +24,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -77,7 +55,7 @@ public class JavaCompilerService {
     // Not modifiable! If you want to edit these, you need to create a new instance
     private final Set<Path> sourcePath, classPath, docPath;
     private final ClassPath classPathIndex;
-    private final JavaCompiler compiler = JavacTool.create(); // TODO switch to java 9 mechanism
+    private final JavaCompiler compiler = ServiceLoader.load(JavaCompiler.class).iterator().next();
     private final Javadocs docs;
     private final ClassPathIndex classes;
     // Diagnostics from the last compilation task
@@ -90,6 +68,9 @@ public class JavaCompilerService {
     private Cache cache;
 
     public JavaCompilerService(Set<Path> sourcePath, Set<Path> classPath, Set<Path> docPath) {
+        Class klass = compiler.getClass();
+        URL location = klass.getResource('/' + klass.getName().replace('.', '/') + ".class");
+
         LOG.info("Creating a new compiler...");
         LOG.info("Source path:");
         for (Path p : sourcePath) {
@@ -145,7 +126,9 @@ public class JavaCompilerService {
     }
 
     private static boolean isJava9() {
-        return StandardSystemProperty.JAVA_VERSION.value().equals("9");
+        String v = StandardSystemProperty.JAVA_VERSION.value();
+        LOG.info("Loading platform for version " + v);
+        return v.startsWith("9") || v.startsWith("10");
     }
 
     private static URL[] platform() {
@@ -317,8 +300,8 @@ public class JavaCompilerService {
         long cursor = cache.root.getLineMap().getPosition(line, character);
 
         // Search for the smallest element that encompasses line:column
-        class FindSmallest extends TreeScanner<Void, Void> {
-            Tree found = null;
+        class FindSmallest extends TreePathScanner<Void, Void> {
+            TreePath found = null;
 
             boolean containsCursor(Tree tree) {
                 long start = pos.getStartPosition(cache.root, tree), end = pos.getEndPosition(cache.root, tree);
@@ -331,25 +314,30 @@ public class JavaCompilerService {
             @Override
             public Void scan(Tree tree, Void nothing) {
                 // This is pre-order traversal, so the deepest element will be the last one remaining in `found`
-                if (containsCursor(tree)) found = tree;
+                if (containsCursor(tree)) found = new TreePath(getCurrentPath(), tree);
                 super.scan(tree, nothing);
                 return null;
             }
 
-            Optional<Tree> find(Tree root) {
+            @Override
+            public Void visitErroneous(ErroneousTree node, Void nothing) {
+                for (Tree t : node.getErrorTrees()) {
+                    t.accept(this, nothing);
+                }
+                return null;
+            }
+
+            Optional<TreePath> find(Tree root) {
                 scan(root, null);
                 return Optional.ofNullable(found);
             }
         }
-        Tree found =
-                new FindSmallest()
-                        .find(cache.root)
-                        .orElseThrow(
-                                () ->
-                                        new RuntimeException(
-                                                String.format("No TreePath to %s %d:%d", file, line, character)));
-
-        return trees.getPath(cache.root, found);
+        Supplier<RuntimeException> notFound =
+                () -> {
+                    String m = String.format("No TreePath to %s %d:%d", file, line, character);
+                    return new RuntimeException(m);
+                };
+        return new FindSmallest().find(cache.root).orElseThrow(notFound);
     }
 
     /** Find all identifiers in scope at line:character */
@@ -639,7 +627,7 @@ public class JavaCompilerService {
                         }
                     }
                     // Add names of classes that haven't been imported
-                    String packageName = parse.getPackageName().toString();
+                    String packageName = Objects.toString(parse.getPackageName(), "");
                     Iterator<Completion> notImported =
                             classes.topLevelClasses()
                                     // This is very cheap, so we do it first
@@ -653,6 +641,14 @@ public class JavaCompilerService {
                         result.add(notImported.next());
                     }
                     isIncomplete = notImported.hasNext();
+                }
+                return null;
+            }
+
+            @Override
+            public Void visitErroneous(ErroneousTree node, Void nothing) {
+                for (Tree t : node.getErrorTrees()) {
+                    t.accept(this, null);
                 }
                 return null;
             }
@@ -966,6 +962,9 @@ public class JavaCompilerService {
 
         Trees trees = Trees.instance(cache.task);
         TreePath path = path(file, line, character);
+        // It's sort of odd that this works
+        // `to` is part of a different batch than `batch = compileBatch(possible)`,
+        // so `to.equals(...thing from batch...)` shouldn't work
         Element to = trees.getElement(path);
         List<Path> possible = potentialReferences(to);
         Batch batch = compileBatch(possible);

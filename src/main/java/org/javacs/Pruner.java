@@ -9,12 +9,12 @@ import com.sun.source.util.JavacTask;
 import com.sun.source.util.SourcePositions;
 import com.sun.source.util.TreeScanner;
 import com.sun.source.util.Trees;
-import com.sun.tools.javac.api.JavacTool;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.ServiceLoader;
 import java.util.logging.Logger;
 import javax.tools.Diagnostic;
 import javax.tools.JavaCompiler;
@@ -25,7 +25,7 @@ class Pruner {
     private static final Logger LOG = Logger.getLogger("main");
     // Parse-only compiler
     // TODO this should come from Parser
-    private static final JavaCompiler COMPILER = JavacTool.create(); // TODO switch to java 9 mechanism
+    private static final JavaCompiler COMPILER = ServiceLoader.load(JavaCompiler.class).iterator().next();
     private static final StandardJavaFileManager FILE_MANAGER =
             COMPILER.getStandardFileManager(Pruner::report, null, Charset.defaultCharset());
 

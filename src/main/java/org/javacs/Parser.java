@@ -12,7 +12,6 @@ import com.sun.source.util.SourcePositions;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.Trees;
-import com.sun.tools.javac.api.JavacTool;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.net.URI;
@@ -21,23 +20,14 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import org.eclipse.lsp4j.Location;
@@ -48,18 +38,19 @@ import org.eclipse.lsp4j.SymbolKind;
 
 class Parser {
 
-    private static final JavacTool compiler = JavacTool.create(); // TODO switch to java 9 mechanism
+    private static final JavaCompiler compiler = ServiceLoader.load(JavaCompiler.class).iterator().next();
     private static final StandardJavaFileManager fileManager =
             compiler.getStandardFileManager(__ -> {}, null, Charset.defaultCharset());
 
     private static JavacTask parseTask(JavaFileObject file) {
-        return compiler.getTask(
-                null,
-                fileManager,
-                err -> LOG.warning(err.getMessage(Locale.getDefault())),
-                Collections.emptyList(),
-                null,
-                Collections.singletonList(file));
+        return (JavacTask)
+                compiler.getTask(
+                        null,
+                        fileManager,
+                        err -> LOG.warning(err.getMessage(Locale.getDefault())),
+                        Collections.emptyList(),
+                        null,
+                        Collections.singletonList(file));
     }
 
     private static JavacTask parseTask(Path source) {
@@ -232,7 +223,7 @@ class Parser {
                 return c.getSimpleName().toString();
             } else if (t instanceof CompilationUnitTree) {
                 CompilationUnitTree c = (CompilationUnitTree) t;
-                return c.getPackageName().toString();
+                return Objects.toString(c.getPackageName(), "");
             } else {
                 parent = parent.getParentPath();
             }

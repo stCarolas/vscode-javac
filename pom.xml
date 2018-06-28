@@ -7,14 +7,6 @@
     <artifactId>javac-services</artifactId>
     <packaging>jar</packaging>
     <version>0.1-SNAPSHOT</version>
-    <repositories>
-        <!-- Local repository with tools.jar -->
-        <repository>
-            <id>jars-repository</id>
-            <name>Local repository for JAR files</name>
-            <url>file://${basedir}/repo</url>
-        </repository>
-    </repositories>
     <distributionManagement>
         <repository>
             <id>distribution-repository</id>
@@ -23,14 +15,9 @@
         </repository>
     </distributionManagement>
     <properties>
-        <jackson-2-version>2.5.0</jackson-2-version>
+        <jackson-2-version>2.9.6</jackson-2-version>
     </properties>
     <dependencies>
-        <dependency>
-            <groupId>com.sun</groupId>
-            <artifactId>tools</artifactId>
-            <version>1.8</version>
-        </dependency>
         <!-- Java implementation of VS Code language server protocol -->
         <dependency>
             <groupId>org.eclipse.lsp4j</groupId>
@@ -97,14 +84,14 @@
     </dependencies>
     <build>
         <plugins>
-            <!-- Set source 1.8 -->
+            <!-- Set source 1.10 -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.3</version>
-                <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                <version>3.7.0</version>
+                <configuration>com.sun.tools.javac
+                    <source>10</source>
+                    <target>10</target>
                 </configuration>
             </plugin>
             <!-- Configure fat jar -->

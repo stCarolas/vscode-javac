@@ -9,9 +9,6 @@ import com.sun.javadoc.MethodDoc;
 import com.sun.javadoc.Parameter;
 import com.sun.javadoc.RootDoc;
 import com.sun.source.util.JavacTask;
-import com.sun.tools.javac.api.JavacTool;
-import com.sun.tools.javac.file.JavacFileManager;
-import com.sun.tools.javadoc.api.JavadocTool;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -19,11 +16,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.BreakIterator;
 import java.time.Instant;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -32,18 +25,17 @@ import java.util.stream.Collectors;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
-import javax.tools.DocumentationTool;
-import javax.tools.JavaFileObject;
-import javax.tools.StandardLocation;
+import javax.tools.*;
 
 // This class must be public so DocletInvoker can call it
 public class Javadocs {
 
     /** Cache for performance reasons */
-    private final JavacFileManager actualFileManager;
+    private final StandardJavaFileManager actualFileManager;
 
     /** Empty file manager we pass to javadoc to prevent it from roaming all over the place */
-    private final JavacFileManager emptyFileManager = JavacTool.create().getStandardFileManager(__ -> {}, null, null);
+    private final StandardJavaFileManager emptyFileManager =
+            ServiceLoader.load(JavaCompiler.class).iterator().next().getStandardFileManager(__ -> {}, null, null);
 
     /** All the classes we have indexed so far */
     private final Map<String, IndexedDoc> topLevelClasses = new ConcurrentHashMap<>();
@@ -62,7 +54,12 @@ public class Javadocs {
 
     Javadocs(Set<Path> sourcePath, Set<Path> docPath) {
         this.actualFileManager = createFileManager(allSourcePaths(sourcePath, docPath));
-        this.task = JavacTool.create().getTask(null, emptyFileManager, __ -> {}, null, null, null);
+        this.task =
+                (JavacTask)
+                        ServiceLoader.load(JavaCompiler.class)
+                                .iterator()
+                                .next()
+                                .getTask(null, emptyFileManager, __ -> {}, null, null, null);
     }
 
     @SafeVarargs
@@ -80,8 +77,9 @@ public class Javadocs {
         return allSourcePaths;
     }
 
-    private static JavacFileManager createFileManager(Set<File> allSourcePaths) {
-        JavacFileManager actualFileManager = JavacTool.create().getStandardFileManager(__ -> {}, null, null);
+    private static StandardJavaFileManager createFileManager(Set<File> allSourcePaths) {
+        StandardJavaFileManager actualFileManager =
+                ServiceLoader.load(JavaCompiler.class).iterator().next().getStandardFileManager(__ -> {}, null, null);
 
         try {
             actualFileManager.setLocation(StandardLocation.SOURCE_PATH, allSourcePaths);
@@ -216,7 +214,7 @@ public class Javadocs {
             LOG.info("Found " + source.toUri() + " for " + className);
 
             DocumentationTool.DocumentationTask task =
-                    new JavadocTool()
+                    ToolProvider.getSystemDocumentationTool()
                             .getTask(null, emptyFileManager, __ -> {}, Javadocs.class, null, ImmutableList.of(source));
 
             task.call();
@@ -245,7 +243,7 @@ public class Javadocs {
     /**
      * Called by the javadoc tool
      *
-     * <p>{@link Doclet}
+     * <p>{@link com.sun.javadoc.Doclet}
      */
     public static boolean start(RootDoc root) {
         sneakyReturn.set(root);

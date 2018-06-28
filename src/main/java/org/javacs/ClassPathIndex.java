@@ -75,7 +75,9 @@ class ClassPathIndex {
     }
 
     private static boolean isJava9() {
-        return StandardSystemProperty.JAVA_VERSION.value().equals("9");
+        String v = StandardSystemProperty.JAVA_VERSION.value();
+        LOG.info("Loading platform for version " + v);
+        return v.startsWith("9") || v.startsWith("10");
     }
 
     private static URL[] platform() {
