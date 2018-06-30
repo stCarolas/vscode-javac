@@ -8,6 +8,8 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JSR310Module;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -70,8 +72,12 @@ public class Main {
 
         try {
             Socket connection = connectToNode();
+            if (connection == null) {
+              run();
+            } else {
+              run(connection);
+            }
 
-            run(connection);
         } catch (Throwable t) {
             LOG.log(Level.SEVERE, t.getMessage(), t);
 
@@ -81,6 +87,9 @@ public class Main {
 
     private static Socket connectToNode() throws IOException {
         String port = System.getProperty("javacs.port");
+        if (port == null || port.isEmpty()) {
+          return null;
+        }
 
         Objects.requireNonNull(port, "-Djavacs.port=? is required");
 
@@ -98,10 +107,30 @@ public class Main {
      * request stream is closed, wait for 5s for all outstanding responses to compute, then return.
      */
     public static void run(Socket connection) throws IOException {
+      run(
+        connection.getInputStream(),
+        connection.getOutputStream()
+      );
+    }
+
+    public static void run() throws IOException {
+      run(
+          System.in,
+          System.out
+      );
+    }
+
+    /**
+     * Listen for requests from the parent node process. Send replies asynchronously. When the
+     * request stream is closed, wait for 5s for all outstanding responses to compute, then return.
+     */
+    public static void run(InputStream input, OutputStream out) throws IOException {
         JavaLanguageServer server = new JavaLanguageServer();
-        Launcher<LanguageClient> launcher =
-                LSPLauncher.createServerLauncher(
-                        server, connection.getInputStream(), connection.getOutputStream());
+        Launcher<LanguageClient> launcher = LSPLauncher.createServerLauncher(
+                                                            server,
+                                                            input,
+                                                            out
+                                            );
 
         server.installClient(launcher.getRemoteProxy());
         launcher.startListening();

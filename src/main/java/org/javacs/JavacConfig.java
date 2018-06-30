@@ -7,7 +7,11 @@ import java.util.Set;
 public class JavacConfig {
     public final Set<Path> classPath, workspaceClassPath, docPath;
 
-    public JavacConfig(Set<Path> classPath, Set<Path> workspaceClassPath, Set<Path> docPath) {
+    public JavacConfig(
+        Set<Path> classPath, 
+        Set<Path> workspaceClassPath, 
+        Set<Path> docPath
+    ) {
         this.classPath = classPath;
         this.workspaceClassPath = workspaceClassPath;
         this.docPath = docPath;

@@ -28,7 +28,10 @@ class JavaTextDocumentService implements TextDocumentService {
     private final JavaLanguageServer server;
     private final Map<URI, VersionedContent> activeDocuments = new HashMap<>();
 
-    JavaTextDocumentService(CompletableFuture<LanguageClient> client, JavaLanguageServer server) {
+    JavaTextDocumentService(
+            CompletableFuture<LanguageClient> client, 
+            JavaLanguageServer server
+    ) {
         this.client = client;
         this.server = server;
     }
@@ -105,32 +108,48 @@ class JavaTextDocumentService implements TextDocumentService {
 
     @Override
     public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completion(
-            TextDocumentPositionParams position) {
+            TextDocumentPositionParams position
+    ) {
         Instant started = Instant.now();
         URI uri = URI.create(position.getTextDocument().getUri());
         Optional<String> content = activeContent(uri);
+        LOG.info("has content");
         int line = position.getPosition().getLine() + 1;
         int character = position.getPosition().getCharacter() + 1;
 
-        LOG.info(String.format("completion at %s %d:%d", uri, line, character));
+        LOG.info(String.format(
+                    "completion at %s %d:%d", 
+                    uri, 
+                    line, 
+                    character
+        ));
 
         Configured config = server.configured();
+        LOG.info("has config");
         FocusedResult result = config.compiler.compileFocused(uri, content, line, character, true);
-        List<CompletionItem> items =
-                Completions.at(result, config.index, config.docs)
+        LOG.info("has result");
+        List<CompletionItem> items = Completions
+                        .at(result, config.index, config.docs)
                         .limit(server.maxItems)
                         .collect(Collectors.toList());
+        LOG.info("has items");
+
         CompletionList list = new CompletionList(items.size() == server.maxItems, items);
-        Duration elapsed = Duration.between(started, Instant.now());
+        LOG.info("has list");
+        CompletableFuture<Either<List<CompletionItem>, CompletionList>>  completed = CompletableFuture.completedFuture(
+                Either.forRight(list)
+        );
+        LOG.info("has completed");
 
-        if (list.isIncomplete())
-            LOG.info(
-                    String.format(
-                            "Found %d items (incomplete) in %d ms",
-                            items.size(), elapsed.toMillis()));
-        else LOG.info(String.format("Found %d items in %d ms", items.size(), elapsed.toMillis()));
+        LOG.info(String.format(
+                    (list.isIncomplete() 
+                        ? "Found %d items (incomplete) in %d ms"
+                        : "Found %d items in %d ms"), 
+                    items.size(), 
+                    Duration.between(started, Instant.now()).toMillis()
+        ));
 
-        return CompletableFuture.completedFuture(Either.forRight(list));
+        return completed;
     }
 
     @Override
@@ -321,18 +340,31 @@ class JavaTextDocumentService implements TextDocumentService {
     public void didChange(DidChangeTextDocumentParams params) {
         VersionedTextDocumentIdentifier document = params.getTextDocument();
         URI uri = URI.create(document.getUri());
+        LOG.info("CHANGE URI: " + uri.toString());
         VersionedContent existing = activeDocuments.get(uri);
-        String newText = existing.content;
+
+        LOG.info(
+                "didChange to "
+                        + document.getVersion()
+                        + " from  "
+                        + existing.version);
 
         if (document.getVersion() > existing.version) {
+            String newText = existing.content;
             for (TextDocumentContentChangeEvent change : params.getContentChanges()) {
-                if (change.getRange() == null)
+                if (change.getRange() == null) {
                     activeDocuments.put(
-                            uri, new VersionedContent(change.getText(), document.getVersion()));
-                else newText = patch(newText, change);
+                            uri, 
+                            new VersionedContent(change.getText(), document.getVersion())
+                    );
+                } else {
+                  newText = patch(newText, change);
+                  activeDocuments.put(
+                      uri, 
+                      new VersionedContent(newText, document.getVersion())
+                  );
+                }
             }
-
-            activeDocuments.put(uri, new VersionedContent(newText, document.getVersion()));
         } else
             LOG.warning(
                     "Ignored change with version "

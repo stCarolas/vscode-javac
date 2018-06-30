@@ -38,10 +38,14 @@ class InferConfig {
             Path mavenHome,
             Path gradleHome) {
         this.workspaceRoot = workspaceRoot;
+        LOG.info("started classpath:" + workspaceRoot);
         this.externalDependencies = externalDependencies;
         this.classPath = classPath;
+        LOG.info("started classpath:" + classPath);
         this.mavenHome = mavenHome;
+        LOG.info("maven home:" + mavenHome);
         this.gradleHome = gradleHome;
+        LOG.info("gradle home:" + gradleHome);
     }
 
     // TODO move to JavaLanguageServer
@@ -90,14 +94,19 @@ class InferConfig {
      */
     Set<Path> buildClassPath() {
         // Settings `externalDependencies`
-        Stream<Path> result =
-                allExternalDependencies()
+        LOG.info("building classpath");
+        Stream<Path> result = allExternalDependencies()
                         .stream()
-                        .flatMap(artifact -> stream(findAnyJar(artifact, false)));
+                        .flatMap( artifact ->
+                            stream(findAnyJar(artifact, false))
+                        );
 
         // Settings `classPath`
-        Stream<Path> classPathJars =
-                classPath.stream().flatMap(jar -> stream(findWorkspaceJar(jar)));
+        Stream<Path> classPathJars = classPath
+            .stream()
+            .flatMap(jar -> 
+                    stream(findWorkspaceJar(jar))
+            );
 
         result = Stream.concat(result, classPathJars);
 
@@ -109,8 +118,11 @@ class InferConfig {
                 result = Stream.concat(result, bazelJars(bazelGenFiles));
             }
         }
+        LOG.info("building classpath");
+        Set<Path> list = result.collect(Collectors.toSet());
+        LOG.info("list:" + list.toString());
 
-        return result.collect(Collectors.toSet());
+        return list;
     }
 
     private Optional<Path> findWorkspaceJar(Path jar) {
@@ -201,6 +213,7 @@ class InferConfig {
     }
 
     private Optional<Path> findAnyJar(Artifact artifact, boolean source) {
+        LOG.info("artifact:" + artifact);
         Optional<Path> maven = findMavenJar(artifact, source);
 
         if (maven.isPresent()) return maven;
@@ -223,6 +236,7 @@ class InferConfig {
     private Optional<Path> findGradleJar(Artifact artifact, boolean source) {
         // Search for caches/modules-*/files-*/groupId/artifactId/version/*/artifactId-version[-sources].jar
         Path base = gradleHome.resolve("caches");
+        System.out.println("gradle cache path: " + base.toString() );
         String pattern =
                 "glob:"
                         + Joiner.on(File.separatorChar)
@@ -235,6 +249,7 @@ class InferConfig {
                                         artifact.version,
                                         "*",
                                         fileName(artifact, source));
+        System.out.println("pattern: " + pattern);
         PathMatcher match = FileSystems.getDefault().getPathMatcher(pattern);
 
         try {
@@ -276,6 +291,31 @@ class InferConfig {
         return option.map(Stream::of).orElseGet(Stream::empty);
     }
 
+    static List<Artifact> gradleDependencyList(Path gradleBuildFile) {
+        LOG.info("gradleDependencyList");
+        try {
+            // Tell maven to output deps to a temporary file
+            File workingDirectory = gradleBuildFile.getParent().toFile();
+            File outputFile = new File(workingDirectory.getPath() + "/deps");
+            String cmd = String.format(
+                "%s/gradlew printDeps",
+                workingDirectory.getPath()
+            );
+
+            int result = Runtime.getRuntime()
+                .exec(cmd, null, workingDirectory)
+                .waitFor();
+
+            if (result != 0) {
+                throw new RuntimeException("`" + cmd + "` returned " + result);
+            }
+
+            return readGradleDependencyList(outputFile);
+        } catch (InterruptedException | IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     static List<Artifact> dependencyList(Path pomXml) {
         Objects.requireNonNull(pomXml, "pom.xml path is null");
 
@@ -294,6 +334,19 @@ class InferConfig {
 
             return readDependencyList(outputFile);
         } catch (InterruptedException | IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static List<Artifact> readGradleDependencyList(File outputFile) {
+        LOG.info("readGradleDependencyList");
+        try (InputStream in = Files.newInputStream(outputFile.toPath())) {
+            return new BufferedReader(new InputStreamReader(in))
+                    .lines()
+                    .map(String::trim)
+                    .map(Artifact::parse)
+                    .collect(Collectors.toList());
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
@@ -321,8 +374,12 @@ class InferConfig {
 
         // If user does not specify java.externalDependencies, look for pom.xml
         Path pomXml = workspaceRoot.resolve("pom.xml");
-
         if (Files.exists(pomXml)) return dependencyList(pomXml);
+
+        Path gradleBuildFile = workspaceRoot.resolve("build.gradle");
+        if (Files.exists(gradleBuildFile)) {
+            return gradleDependencyList(gradleBuildFile);
+        }
 
         return Collections.emptyList();
     }

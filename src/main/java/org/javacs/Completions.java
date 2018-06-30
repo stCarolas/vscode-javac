@@ -25,10 +25,23 @@ import org.eclipse.lsp4j.TextEdit;
 
 class Completions {
 
-    static Stream<CompletionItem> at(FocusedResult compiled, SymbolIndex index, Javadocs docs) {
+    static Stream<CompletionItem> at(
+            FocusedResult compiled, 
+            SymbolIndex index, 
+            Javadocs docs
+    ) {
         Function<TreePath, Completions> newCompletions =
-                path -> new Completions(compiled.task, compiled.classPath, index, docs, path);
-        return compiled.cursor.map(newCompletions).map(Completions::get).orElseGet(Stream::empty);
+                path -> new Completions(
+                                compiled.task, 
+                                compiled.classPath, 
+                                index, 
+                                docs, 
+                                path
+                        );
+        return compiled.cursor
+                        .map(newCompletions)
+                        .map(Completions::get)
+                        .orElseGet(Stream::empty);
     }
 
     private final JavacTask task;

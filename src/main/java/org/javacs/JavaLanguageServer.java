@@ -35,15 +35,17 @@ class JavaLanguageServer implements LanguageServer {
     int maxItems = 50;
     private final CompletableFuture<LanguageClient> client = new CompletableFuture<>();
     private final JavaTextDocumentService textDocuments = new JavaTextDocumentService(client, this);
-    private final JavaWorkspaceService workspace =
-            new JavaWorkspaceService(client, this, textDocuments);
-    private Path workspaceRoot = Paths.get(".");
+    private final JavaWorkspaceService workspace = new JavaWorkspaceService(client, this, textDocuments);
 
     private Configured cacheConfigured;
     private JavaSettings cacheSettings;
-    private Path cacheWorkspaceRoot;
     private Instant cacheInferConfig = Instant.EPOCH;
     private Set<Path> cacheSourcePath = Collections.emptySet();
+    private Path cacheWorkspaceRoot;
+    private Path workspaceRoot = Paths.get(".");
+    private Path userHome   = Paths.get(System.getProperty("user.home"));
+    private Path mavenHome  = userHome.resolve(".m2");
+    private Path gradleHome = userHome.resolve(".gradle");
 
     /**
      * Configured java compiler + indices based on workspace settings and inferred source / class
@@ -70,27 +72,30 @@ class JavaLanguageServer implements LanguageServer {
     }
 
     private Configured createCompiler(JavaSettings settings, Path workspaceRoot) {
-        SymbolIndex index =
-                new SymbolIndex(
-                        workspaceRoot, textDocuments::openFiles, textDocuments::activeContent);
+        SymbolIndex index = new SymbolIndex(
+                        workspaceRoot, 
+                        textDocuments::openFiles, 
+                        textDocuments::activeContent
+        );
         Set<Path> sourcePath = index.sourcePath();
-        Path userHome = Paths.get(System.getProperty("user.home")),
-                mavenHome = userHome.resolve(".m2"),
-                gradleHome = userHome.resolve(".gradle");
-        List<Artifact> externalDependencies =
-                Lists.transform(settings.java.externalDependencies, Artifact::parse);
+
+        List<Artifact> externalDependencies = Lists.transform(
+            settings.java.externalDependencies, 
+            Artifact::parse
+        );
+
         List<Path> settingsClassPath = Lists.transform(settings.java.classPath, Paths::get);
 
-        InferConfig infer =
-                new InferConfig(
+        InferConfig infer = new InferConfig(
                         workspaceRoot,
                         externalDependencies,
                         settingsClassPath,
                         mavenHome,
-                        gradleHome);
-        Set<Path> classPath = infer.buildClassPath(),
-                workspaceClassPath = infer.workspaceClassPath(),
-                docPath = infer.buildDocPath();
+                        gradleHome
+        );
+        Set<Path> classPath = infer.buildClassPath();
+        Set<Path> workspaceClassPath = infer.workspaceClassPath();
+        Set<Path> docPath = infer.buildDocPath();
 
         // If user does not specify java.externalDependencies, look for javaconfig.json
         // This is for compatibility with the old behavior and should eventually be removed
@@ -110,8 +115,10 @@ class JavaLanguageServer implements LanguageServer {
         LOG.info("\tworkspaceClassPath:" + Joiner.on(' ').join(workspaceClassPath));
         LOG.info("\tdocPath:" + Joiner.on(' ').join(docPath));
 
-        JavacHolder compiler =
-                JavacHolder.create(sourcePath, Sets.union(classPath, workspaceClassPath));
+        JavacHolder compiler = JavacHolder.create(
+                sourcePath, 
+                Sets.union(classPath, workspaceClassPath)
+        );
         Javadocs docs = new Javadocs(sourcePath, docPath, textDocuments::activeContent);
         FindSymbols find = new FindSymbols(index, compiler, textDocuments::activeContent);
 
